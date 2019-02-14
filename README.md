@@ -56,7 +56,7 @@ Windows users can omit the `source` command and just type
 
 You can now safely install ENSEMBLE_SST sources into the new `ENSEMBLE_SST-env` environment.
     
-    (cate) $ python setup.py install
+    (ENSEMBLE_SST) $ python setup.py install
     
 ### Using Standard Python 
 
