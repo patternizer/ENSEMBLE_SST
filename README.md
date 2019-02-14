@@ -13,6 +13,7 @@ Development code for calculation of the SST ensemble from the harmonised AVHRR E
 ## Contents
 
 * `setup.py` - main build script to be run with Python 3.6
+* `calc_ensemble.py` - eigenvalue decomposition script to be run with Python 3.6
 * `ENSEMBLE_SST/` - main package and production code
 * `test/` - test package and test code
 * `doc/` - documentation in Sphinx/RST format
