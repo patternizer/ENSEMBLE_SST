@@ -1,4 +1,4 @@
-"""A setuptools based setup module for AVHRR_NOISE
+"""A setuptools based setup module for ENSEMBLE_SST
 See:
 https://packaging.python.org/en/latest/distributing.html
 https://github.com/pypa/sampleproject
@@ -35,7 +35,7 @@ version = so.strip().decode("utf-8").lstrip("v").replace("-",
     "+dev", 1).replace("-", ".") + "." + br.strip().decode("utf-8")
 
 setup(
-    name='AVHRR_NOISE',
+    name='ENSEMBLE_SST',
 
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
@@ -46,14 +46,14 @@ setup(
     long_description=long_description,
 
     # The project's main homepage.
-    url='https://github.com/patternizer/AVHRR_NOISE/',
+    url='https://github.com/patternizer/ENSEMBLE_SST/',
 
     # Author details
     author='Michael Taylor',
     author_email='michael.taylor@reading.ac.uk',
 
     # Choose your license
-    license='GPL',
+    license='MIT',
 
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
@@ -68,7 +68,7 @@ setup(
         "Topic :: Scientific/Engineering :: Atmospheric Science",
 
         # Pick your license as you wish (should match "license" above)
-        "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+        "License :: MIT",
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
@@ -76,7 +76,7 @@ setup(
     ],
 
     # What does your project relate to?
-    keywords="AVHRR noise infrared FCDR metrology climate data",
+    keywords="SST FCDR CDR metrology climate data",
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
@@ -92,11 +92,8 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=["numpy>=1.13",
                       "matplotlib>=2.0",
-                      "typhon>=0.5.0",
                       "netCDF4>=1.2",
-                      "pandas>=0.21",
-                      "xarray>=0.10",
-                      "seaborn>=0.7"],
+                      "xarray>=0.10"],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
