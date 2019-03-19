@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.1
-# 28 January, 2019
+# Version 0.2
+# 19 March, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -102,6 +102,10 @@ def calc_ensemble(file_in):
     print(evals_all[i_sort])
     print(evals_mid)
     print(np.dot(evecs_mid.T, evecs_all[:,i_sort]))
+
+    # 
+    # Code block for perturbation of the covariance matrix
+    #
 
 if __name__ == "__main__":
 
