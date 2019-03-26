@@ -54,8 +54,8 @@ def calc_eigen(ds):
     X = parameter_covariance_matrix
 
     eigenval, eigenvec = np.linalg.eig(X)
-    print('Eigenvalues \n%s' %eigenval)   
-    print('Eigenvectors \n%s' %eigenvec)
+#    print('Eigenvalues \n%s' %eigenval)   
+#    print('Eigenvectors \n%s' %eigenvec)
 
     return eigenval, eigenvec
 
@@ -108,9 +108,64 @@ def plot_covariance(ds):
     X = parameter_covariance_matrix
 
     fig = plt.figure()
-    sns.heatmap(X, linewidths=.5, cmap="viridis", cbar=True)
+    sns.heatmap(X, center=0, linewidths=.5, cmap="viridis", cbar=True)
     plt.title('Covariance matrix')
     plt.savefig('covariance_matrix.png')    
+
+def plot_sample_binormal():
+    '''
+    # -------------------------------
+    # TEST CASE: SAMPLE FROM BINORMAL
+    # -------------------------------
+    '''
+
+    #
+    # Generate random binormal data
+    #
+    Xmean = np.zeros(2) # [0,0]
+    Xcov = np.eye(2) # [[1,0],[0,1]]
+    size = 10000
+    data1 = np.random.multivariate_normal(Xmean, Xcov, size)
+
+    #
+    # Make 100 draws 
+    #
+
+#    X1 = np.random.rand(100)
+#    X2 = np.random.rand(100)
+    X1 = data1[:,0]
+    X2 = data1[:,1]
+    Xmean = [X1.mean(), X2.mean()]
+    X = np.stack((X1, X2), axis=0)
+    Xcov = np.cov(X)
+#    Xcov = [[0.9,0.1],[0.1,0.9]]
+    print(Xmean)
+    print(Xcov)
+    size = 100
+    data2 = np.random.multivariate_normal(Xmean, Xcov, size)        
+    df1 = pd.DataFrame(data1, columns=['x1', 'x2'])
+    df2 = pd.DataFrame(data2, columns=['y1', 'y2'])
+
+    #
+    # Plot joint distribution
+    #
+
+    # colours = ["#9b59b6", "#3498db", "#95a5a6", "#e74c3c", "#34495e", "#2ecc71"]
+    #             purple,      blue,      grey,    orange,      navy,     green
+    fig, ax = plt.subplots()
+    graph = sns.jointplot(x=df1.x1, y=df1.x2, kind="hex", space=0, color="#9b59b6")
+    plt.subplots_adjust(left=0.1, right=0.8, top=0.9, bottom=0.1)
+    cax = graph.fig.add_axes([.81, .15, .02, .5])  # x, y, width, height
+    cbar = plt.colorbar(cax=cax)
+    cbar.set_label('count')
+    graph.x = df2.y1
+    graph.y = df2.y2
+    graph.plot_joint(plt.scatter, marker="x", color="#34495e", s=2)
+    graph.x = X1.mean()
+    graph.y = X2.mean()
+    graph.plot_joint(plt.scatter, marker="x", color="#3498db", s=50)    
+    fig.suptitle('2D-sampling from binormal distribution')
+    plt.savefig('sampled_binormal.png')    
 
 def calc_ensemble(ds):
     '''
@@ -147,80 +202,52 @@ def calc_ensemble(ds):
     # The sensors associated with the harmonisation residual: (24,)
     k_res_sensors = ds['k_res_sensors'] 
 
-    #
-    # Sample from multivariate Gaussian distribution
-    #
-
-    # numpy.random.multivariate_normal(mean, cov[, size, check_valid, tol])
-
     # The multivariate normal, multinormal or Gaussian distribution is a 
     # generalization of the 1D-normal distribution to higher dimensions. 
     # Such a distribution is specified by its mean and covariance matrix. 
     # These parameters are analogous to the mean (average or “center”) and 
     # variance (standard deviation, or “width,” squared) of the 1D-normal distribution.
 
-    # mean : 1-D array_like, of length N
-    # Mean of the N-dimensional distribution.
+    Xmean = parameter 
+    Xcov = parameter_covariance_matrix
+    size = 100
+    draws = np.random.multivariate_normal(Xmean, Xcov, size)
 
-    # cov : 2-D array_like, of shape (N, N)
-    # Covariance matrix of the distribution. It must be symmetric and 
-    # positive-semidefinite for proper sampling.
+    # np.random.multivariate_normal(Xmean, Xcov[, size, check_valid, tol])
+    # Xmean : 1-D array_like, of length N : mean of the N-dimensional distribution
+    # Xcov : 2-D array_like, of shape (N, N) : covariance matrix of the distribution (symmetric and positive-semidefinite for proper sampling)
+    # size : int or tuple of ints : optional
+    # check_valid : { ‘warn’, ‘raise’, ‘ignore’ } : optional (behavior when the covariance matrix is not positive semidefinite)
+    # tol : float : optional (tolerance when checking the singular values in covariance matrix)
+    # draws : ndarray : drawn samples, of shape size, if that was provided (if not, the shape is (N,) i.e. each entry out[i,j,...,:] is an N-dimensional value drawn from the distribution)
+    # Given a shape of, for example, (m,n,k), m*n*k samples are generated, and packed in an m x n x k arrangement. 
+    # Because each sample is N-dimensional, the output shape is (m,n,k,N). If no shape is specified, a single (N-D) sample is returned.
 
-    # size : int or tuple of ints, optional
+    return draws
 
-    # Given a shape of, for example, (m,n,k), m*n*k samples are generated, and 
-    # packed in an m-by-n-by-k arrangement. Because each sample is N-dimensional, 
-    # the output shape is (m,n,k,N). If no shape is specified, a single (N-D) sample is returned.
-
-    # check_valid : { ‘warn’, ‘raise’, ‘ignore’ }, optional
-    # Behavior when the covariance matrix is not positive semidefinite.
-
-    # tol : float, optional
-    # Tolerance when checking the singular values in covariance matrix.
-
-    # Returns:
-
-    # out : ndarray
-
-    # The drawn samples, of shape size, if that was provided. If not, the shape is (N,).
-    # In other words, each entry out[i,j,...,:] is an N-dimensional value drawn from the distribution.
-
-def calc_pca(ds):
+def plot_ensemble(ds, draws):
     '''
-    Perform PCA using standard eigenvalue decomposition of the harmonisation parameter covariance matrix
+    Plot ensemble
     '''
+    # Harmonisation parameters: (27,)
+    parameter = ds['parameter'] 
     # Harmonisation parameter covariance matrix: (27, 27)
     parameter_covariance_matrix = ds['parameter_covariance_matrix'] 
-    X = parameter_covariance_matrix
 
-    # compute a standard eigenvalue decomposition using eigh:
-    evals_all, evecs_all = eigh(X)
+    X = parameter
+    Y = draws
+    N = len(draws)
+    M = len(X)
 
-    # compute the largest eigenvalues (which = 'LM') of X and compare them to the known results:
-    evals_large, evecs_large = eigsh(X, 3, which='LM')
-    print(evals_all[-3:])
-    print(evals_large)
-    print(np.dot(evecs_large.T, evecs_all[:,-3:]))
-
-    # solve for the eigenvalues with smallest magnitude:
-    evals_small, evecs_small = eigsh(X, 3, which='SM', tol=1E-2)
-    # evals_small, evecs_small = eigsh(X, 3, which='SM', maxiter=5000)
-    print(evals_small)
-    print(np.dot(evecs_small.T, evecs_all[:,:3]))
-
-    # solve for the eigenvalues of the shift-invert mode analogous problem such that thetransformed eigenvalues will then satisfy the inverse relation where small eigenvalues become large eigenvalues:
-
-    evals_small, evecs_small = eigsh(X, 3, sigma=0, which='LM')
-    print(evals_small)
-    print(np.dot(evecs_small.T, evecs_all[:,:3]))
-
-    # to find internal eigenvalues and eigenvectors, e.g. those nearest to 1, simply set sigma = 1 and ARPACK takes care of the rest:
-
-    evals_mid, evecs_mid = eigsh(X, 3, sigma=1, which='LM')
-    i_sort = np.argsort(abs(1. / (1 - evals_all)))[-3:]
-    print(evals_all[i_sort])
-    print(evals_mid)
-    print(np.dot(evecs_mid.T, evecs_all[:,i_sort]))
+    fig = plt.figure()
+    plt.plot(Y)
+    for i in range(0,N):
+        for j in range(0,M):
+            plt.scatter(i, X[j], marker='o', color='k')
+    plt.xlabel('Ensemble member')
+    plt.ylabel('Coefficient value')
+    plt.title('FCDR harmonisation coefficients')
+    plt.savefig('ensemble.png')    
 
 if __name__ == "__main__":
 
@@ -230,11 +257,15 @@ if __name__ == "__main__":
 
     file_in = "harm_FO_3.0_27b18eb_ODR_101_11_R____AVHRR_REAL_4_RSA______19911004_20151231.nc"
     ds = load_data(file_in)
+    draws = calc_ensemble(ds)
+    plot_ensemble(ds, draws)
+
     eigenval, eigenvec = calc_eigen(ds)
     plot_eigenval(eigenval)
     plot_eigenvec(eigenvec)
     plot_covariance(ds)
-#    calc_ensemble(ds)
-#    calc_pca(ds)
+    plot_sample_binormal()
+
+
 
 
