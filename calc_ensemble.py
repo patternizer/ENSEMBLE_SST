@@ -74,6 +74,58 @@ def calc_ensemble(file_in):
     print('Eigenvectors \n%s' %eig_vecs)
     print('\nEigenvalues \n%s' %eig_vals)   
 
+    #
+    # Sample from multivariate Gaussian distribution
+    #
+
+    numpy.random.multivariate_normal(mean, cov[, size, check_valid, tol])
+
+    # The multivariate normal, multinormal or Gaussian distribution is a 
+    # generalization of the 1D-normal distribution to higher dimensions. 
+    # Such a distribution is specified by its mean and covariance matrix. 
+    # These parameters are analogous to the mean (average or “center”) and 
+    # variance (standard deviation, or “width,” squared) of the 1D-normal distribution.
+
+    # mean : 1-D array_like, of length N
+    # Mean of the N-dimensional distribution.
+
+    # cov : 2-D array_like, of shape (N, N)
+    # Covariance matrix of the distribution. It must be symmetric and 
+    # positive-semidefinite for proper sampling.
+
+    # size : int or tuple of ints, optional
+
+    # Given a shape of, for example, (m,n,k), m*n*k samples are generated, and 
+    # packed in an m-by-n-by-k arrangement. Because each sample is N-dimensional, 
+    # the output shape is (m,n,k,N). If no shape is specified, a single (N-D) sample is returned.
+
+    # check_valid : { ‘warn’, ‘raise’, ‘ignore’ }, optional
+    # Behavior when the covariance matrix is not positive semidefinite.
+
+    # tol : float, optional
+    # Tolerance when checking the singular values in covariance matrix.
+
+    # Returns:
+
+    # out : ndarray
+
+    # The drawn samples, of shape size, if that was provided. If not, the shape is (N,).
+    # In other words, each entry out[i,j,...,:] is an N-dimensional value drawn from the distribution.
+
+
+
+    #
+    # Scree plot of eigenvalues
+    #
+
+    #
+    # Heatmap of covariance matrice
+    #
+
+
+
+
+
     # compute a standard eigenvalue decomposition using eigh:
     evals_all, evecs_all = eigh(X)
 
