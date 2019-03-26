@@ -19,15 +19,16 @@ import sys
 import numpy as np
 import numpy.ma as ma  
 import xarray
+import pandas as pd
+from pandas import Series, DataFrame, Panel
 from sklearn.preprocessing import StandardScaler
 #import arpack
 import scipy
 from scipy.linalg import eigh
 from scipy.sparse.linalg import eigsh
-import matplotlib.pyplot as plt
+import seaborn as sns; sns.set(style="darkgrid")
+import matplotlib.pyplot as plt; plt.close("all")
 import matplotlib.dates as mdates
-import seaborn as sns
-
 
 # =======================================    
 
@@ -62,15 +63,17 @@ def plot_eigenval(eigenval):
     '''
     Plot eigenvalues as a scree plot
     '''
-    X = eigenval
+    Y = eigenval / max(eigenval)
+    N = len(Y)    
+    X = np.arange(0,N)
 
     fig = plt.figure()
-    plt.plot(X, drawstyle='steps')
+    plt.fill_between(X, Y, step="post", alpha=0.4)
+    plt.plot(X, Y, drawstyle='steps-post')
     plt.tick_params(labelsize=12)
-    plt.ylabel("Eigenvalue", fontsize=12)
-    title_str = 'Max=' + "{0:.5f}".format(X.max())
-#    print(title_str)
-#    plt.legend(loc='best')
+    plt.ylabel("Relative value", fontsize=12)
+    title_str = 'Scree plot: eigenvalue max=' + "{0:.5f}".format(eigenval.max())
+    plt.title(title_str)
     plt.savefig('eigenvalues.png')    
 
 def plot_eigenvec(eigenvec):
@@ -80,9 +83,20 @@ def plot_eigenvec(eigenvec):
     X = eigenvec
 
     fig = plt.figure()
-    df = pd.DataFrame({'MutProb': [0.1, 0.05, 0.01, 0.005, 0.001, 0.1, 0.05, 0.01, 0.005, 0.001, 0.1, 0.0, 0.01, 0.005, 0.001, 0.1, 0.05, 0.01, 0.005, 0.001, 0.1, 0.05, 0.01, 0.005, 0.001], 'SymmetricDivision': [1.0, 1.0, 1.0, 1.0, 1.0, 0.8, 0.8, 0.8, 0.8, 0.8, 0.6, 0.6, 0.6, 0.6, 0.6, 0.4, 0.4, 0.4, 0.4, 0.4, 0.2, 0.2, 0.2, 0.2, 0.2], 'test': ['sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule', 'sackin_yule'], 'value': [-4.1808639999999997, -9.1753490000000006, -11.408113999999999, -10.50245, -8.0274750000000008, -0.72260200000000008, -6.9963940000000004, -10.536339999999999, -9.5440649999999998, -7.1964070000000007, -0.39225599999999999, -6.6216390000000001, -9.5518009999999993, -9.2924690000000005, -6.7605589999999998, -0.65214700000000003, -6.8852289999999989, -9.4557760000000002, -8.9364629999999998, -6.4736289999999999, -0.96481800000000006, -6.051482, -9.7846860000000007, -8.5710630000000005, -6.1461209999999999]})
-    result = df.pivot(index='SymmetricDivision', columns='MutProb', values='value')
-    sns.heatmap(result, annot=True, fmt="g", cmap='viridis')
+    sns.heatmap(X, center=0, linewidths=.5, cmap="viridis", cbar=True)
+#    sns.heatmap(X, vmin=0, vmax=1, linewidths=.5, cmap="viridis", cbar=True)
+#    sns.heatmap(X, center=0, linewidths=.5, annot=True, fmt="f", cmap="viridis", cbar=True)
+
+    #
+    # Mask out upper triangle
+    #
+
+    # mask = np.zeros_like(X)
+    # mask[np.triu_indices_from(mask)] = True
+    # with sns.axes_style("white"):
+    #    sns.heatmap(X, mask=mask, square=True)
+
+    plt.title('Eigenvector matrix')
     plt.savefig('eigenvectors.png')    
 
 def plot_covariance(ds):
@@ -94,9 +108,8 @@ def plot_covariance(ds):
     X = parameter_covariance_matrix
 
     fig = plt.figure()
-    df = X
-    result = df.pivot(index='SymmetricDivision', columns='MutProb', values='value')
-    sns.heatmap(result, annot=True, fmt="g", cmap='viridis')
+    sns.heatmap(X, linewidths=.5, cmap="viridis", cbar=True)
+    plt.title('Covariance matrix')
     plt.savefig('covariance_matrix.png')    
 
 def calc_ensemble(ds):
@@ -220,7 +233,7 @@ if __name__ == "__main__":
     eigenval, eigenvec = calc_eigen(ds)
     plot_eigenval(eigenval)
     plot_eigenvec(eigenvec)
-#    plot_covariance(ds)
+    plot_covariance(ds)
 #    calc_ensemble(ds)
 #    calc_pca(ds)
 
