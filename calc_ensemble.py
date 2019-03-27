@@ -249,6 +249,22 @@ def plot_ensemble(ds, draws):
     plt.title('FCDR harmonisation coefficients')
     plt.savefig('ensemble.png')    
 
+
+    #
+    # Histograms of ensemble coefficient variability
+    #
+
+    fig, ax = plt.subplots(9,3,sharex=False)
+    for i in range(0,9):
+        for j in range(0,3):
+            k = (3*i)+j
+            hist, bins = np.histogram(Y[:,k], bins=10, density=True) 
+            a_mean = Y[:,k].mean()
+            ax[i,j].plot(bins[0:-1], hist)
+            ax[i,j].plot((a_mean,a_mean), (0,hist.max()), 'r-')   
+            ax[i,j].tick_params(labelsize=6)
+    plt.savefig('histograms.png')
+
 if __name__ == "__main__":
 
 #    parser = OptionParser("usage: %prog file_in")
