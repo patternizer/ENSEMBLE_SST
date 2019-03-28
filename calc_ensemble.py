@@ -87,15 +87,6 @@ def plot_eigenvec(eigenvec):
 #    sns.heatmap(X, vmin=0, vmax=1, linewidths=.5, cmap="viridis", cbar=True)
 #    sns.heatmap(X, center=0, linewidths=.5, annot=True, fmt="f", cmap="viridis", cbar=True)
 
-    #
-    # Mask out upper triangle
-    #
-
-    # mask = np.zeros_like(X)
-    # mask[np.triu_indices_from(mask)] = True
-    # with sns.axes_style("white"):
-    #    sns.heatmap(X, mask=mask, square=True)
-
     plt.title('Eigenvector matrix')
     plt.savefig('eigenvectors.png')    
 
@@ -105,10 +96,21 @@ def plot_covariance(ds):
     '''
     # Harmonisation parameter covariance matrix: (27, 27)
     parameter_covariance_matrix = ds['parameter_covariance_matrix'] 
+
     X = parameter_covariance_matrix
 
     fig = plt.figure()
-    sns.heatmap(X, center=0, linewidths=.5, cmap="viridis", cbar=True)
+#    sns.heatmap(X, center=0, linewidths=.5, cmap="viridis", cbar=True)
+
+    #
+    # Mask out upper triangle
+    #
+
+    mask = np.zeros_like(X)
+    mask[np.triu_indices_from(mask)] = True
+    with sns.axes_style("white"):
+        sns.heatmap(X, mask=mask, square=True, center=0, linewidths=.5, cmap="viridis", cbar=True)
+
     plt.title('Covariance matrix')
     plt.savefig('covariance_matrix.png')    
 
@@ -153,17 +155,17 @@ def plot_sample_binormal():
     # colours = ["#9b59b6", "#3498db", "#95a5a6", "#e74c3c", "#34495e", "#2ecc71"]
     #             purple,      blue,      grey,    orange,      navy,     green
     fig, ax = plt.subplots()
-    graph = sns.jointplot(x=df1.x1, y=df1.x2, kind="hex", space=0, color="#9b59b6")
+    graph = sns.jointplot(x=df1.x1, y=df1.x2, kind="hex", space=0, color="#3498db")
     plt.subplots_adjust(left=0.1, right=0.8, top=0.9, bottom=0.1)
     cax = graph.fig.add_axes([.81, .15, .02, .5])  # x, y, width, height
     cbar = plt.colorbar(cax=cax)
     cbar.set_label('count')
     graph.x = df2.y1
     graph.y = df2.y2
-    graph.plot_joint(plt.scatter, marker="x", color="#34495e", s=2)
+    graph.plot_joint(plt.scatter, marker="x", color="#e74c3c", s=2)
     graph.x = X1.mean()
     graph.y = X2.mean()
-    graph.plot_joint(plt.scatter, marker="x", color="#3498db", s=50)    
+    graph.plot_joint(plt.scatter, marker="x", color="r", s=50)    
     fig.suptitle('2D-sampling from binormal distribution')
     plt.savefig('sampled_binormal.png')    
 
@@ -210,7 +212,7 @@ def calc_ensemble(ds):
 
     Xmean = parameter 
     Xcov = parameter_covariance_matrix
-    size = 100
+    size = 10000
     draws = np.random.multivariate_normal(Xmean, Xcov, size)
 
     # np.random.multivariate_normal(Xmean, Xcov[, size, check_valid, tol])
@@ -239,32 +241,56 @@ def plot_ensemble(ds, draws):
     N = len(draws)
     M = len(X)
 
-    fig = plt.figure()
-    plt.plot(Y)
-    for i in range(0,N):
-        for j in range(0,M):
-            plt.scatter(i, X[j], marker='o', color='k')
-    plt.xlabel('Ensemble member')
-    plt.ylabel('Coefficient value')
-    plt.title('FCDR harmonisation coefficients')
-    plt.savefig('ensemble.png')    
-
+    sensor = ['METOPA','NOAA19','NOAA18','NOAA17','NOAA16','NOAA15','NOAA14','NOAA12','NOAA11']
 
     #
-    # Histograms of ensemble coefficient variability
+    # Ensemble coefficients plotted as FPE (%) anomalies from best value
     #
 
-    fig, ax = plt.subplots(9,3,sharex=False)
     for i in range(0,9):
+
+        fig, ax = plt.subplots(3,1,sharex=True)
         for j in range(0,3):
             k = (3*i)+j
-            hist, bins = np.histogram(Y[:,k], bins=10, density=True) 
             a_mean = Y[:,k].mean()
-            ax[i,j].plot(bins[0:-1], hist)
-            ax[i,j].plot((a_mean,a_mean), (0,hist.max()), 'r-')   
-            ax[i,j].tick_params(labelsize=6)
-    plt.savefig('histograms.png')
+            ax[j].plot(np.arange(0,N),(100.0 * (Y[:,k] - a_mean) / a_mean))            
+            ax[j].plot((0,N), (0,0), 'r-')   
+#            ax[j].plot((0,N), (a_mean,a_mean), 'r-')   
+            ax[j].tick_params(labelsize=10)
+            ax[j].set_ylabel('Anomaly / %', fontsize=10)
+            title_str = sensor[i] + ": coeff " + str(j+1) + "=" + "{0:.3e}".format(a_mean)
+            ax[j].set_title(title_str, fontsize=10)
 
+        plt.xlabel('Ensemble member', fontsize=10)
+        file_str = "ensemble_coefficients_" + sensor[i] + ".png"
+        plt.savefig(file_str)    
+
+    #
+    # Histograms of ensemble variability
+    #
+
+    for i in range(0,9):
+
+        fig, ax = plt.subplots(3,1,sharex=False)
+        for j in range(0,3):
+            k = (3*i)+j
+            a_mean = Y[:,k].mean()
+            Z = 100.0 * (Y[:,k] - a_mean) / a_mean
+            hist, bins = np.histogram(Z, bins=100, density=False) 
+#            hist = hist/hist.sum()
+            ax[j].fill_between(bins[0:-1], hist, step="post", alpha=0.4)
+            ax[j].plot(bins[0:-1], hist, drawstyle='steps-post')
+#            ax[j].plot((a_mean,a_mean), (0,hist.max()), 'r-')   
+            ax[j].plot((0,0), (0,hist.max()), 'r-')   
+            ax[j].tick_params(labelsize=10)
+            ax[j].set_ylabel('Count', fontsize=10)
+            title_str = sensor[i] + ": coefficient=" + str(j+1)
+            ax[j].set_title(title_str, fontsize=10)
+
+        plt.xlabel('Coefficient value', fontsize=10)
+        file_str = "ensemble_histograms_" + sensor[i] + ".png"
+        plt.savefig(file_str)    
+    
 if __name__ == "__main__":
 
 #    parser = OptionParser("usage: %prog file_in")
