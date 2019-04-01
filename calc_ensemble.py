@@ -12,6 +12,7 @@
 
 import os  
 import os.path  
+from os import fsync, remove
 import glob  
 import optparse 
 from  optparse import OptionParser  
@@ -19,6 +20,7 @@ import sys
 import math
 import numpy as np
 import numpy.ma as ma  
+from numpy import array_equal, savetxt, loadtxt, frombuffer, save as np_save, load as np_load, savez_compressed, array
 import xarray
 import pandas as pd
 from pandas import Series, DataFrame, Panel
@@ -33,14 +35,20 @@ import matplotlib.dates as mdates
 import matplotlib.colors as colors
 import matplotlib.ticker as ticker
 
+
 # =======================================    
 # AUXILIARY METHODS
 # =======================================    
+
 def fmt(x, pos):
+    '''
+    Allow for expoential notation in colorbar labels
+    '''
     a, b = '{0:.3e}'.format(x).split('e')
     b = int(b)
 
     return r'${} \times 10^{{{}}}$'.format(a, b)
+
 # =======================================    
 
 def load_data(file_in):
@@ -169,13 +177,13 @@ def calc_ensemble(ds):
 
     # The multivariate normal, multinormal or Gaussian distribution is a 
     # generalization of the 1D-normal distribution to higher dimensions. 
-    # Such a distribution is specified by its mean and covariance matrix. 
-    # These parameters are analogous to the mean (average or “center”) and 
+    # Such a distribution is specified by its mean and covariance matrix.
+    # These parameters are analogous to the mean (average or “center”) and
     # variance (standard deviation, or “width,” squared) of the 1D-normal distribution.
 
     Xmean = parameter 
     Xcov = parameter_covariance_matrix
-    size = 10000
+    size = 1000000
     draws = np.random.multivariate_normal(Xmean, Xcov, size)
 
     # np.random.multivariate_normal(Xmean, Xcov[, size, check_valid, tol])
@@ -187,6 +195,12 @@ def calc_ensemble(ds):
     # draws : ndarray : drawn samples, of shape size, if that was provided (if not, the shape is (N,) i.e. each entry out[i,j,...,:] is an N-dimensional value drawn from the distribution)
     # Given a shape of, for example, (m,n,k), m*n*k samples are generated, and packed in an m x n x k arrangement. 
     # Because each sample is N-dimensional, the output shape is (m,n,k,N). If no shape is specified, a single (N-D) sample is returned.
+
+    # 
+    # Fast save of draws array
+    #
+
+    np_save('draws.npy', draws, allow_pickle=False)
 
     return draws
 
@@ -393,9 +407,12 @@ if __name__ == "__main__":
     plot_parameters(ds)
     plot_covariance(ds)
     plot_sample_binormal()
+
+    # 
+    # Fast load of draws array
+    #
+    draws = np_load('draws.npy')
     plot_ensemble_histograms(ds, draws)
     plot_ensemble_coefficients(ds, draws)
-
-
 
 
