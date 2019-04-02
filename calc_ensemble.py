@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.5
-# 1 April, 2019
+# Version 0.6
+# 2 April, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -17,15 +17,12 @@ import glob
 import optparse 
 from  optparse import OptionParser  
 import sys   
-import math
 import numpy as np
 import numpy.ma as ma  
 from numpy import array_equal, savetxt, loadtxt, frombuffer, save as np_save, load as np_load, savez_compressed, array
 import xarray
 import pandas as pd
 from pandas import Series, DataFrame, Panel
-from sklearn.preprocessing import StandardScaler
-#import arpack
 import scipy
 from scipy.linalg import eigh
 from scipy.sparse.linalg import eigsh
@@ -34,7 +31,7 @@ import matplotlib.pyplot as plt; plt.close("all")
 import matplotlib.dates as mdates
 import matplotlib.colors as colors
 import matplotlib.ticker as ticker
-
+from mpl_toolkits.mplot3d import Axes3D
 
 # =======================================    
 # AUXILIARY METHODS
@@ -44,6 +41,7 @@ def fmt(x, pos):
     '''
     Allow for expoential notation in colorbar labels
     '''
+
     a, b = '{0:.3e}'.format(x).split('e')
     b = int(b)
 
@@ -55,6 +53,7 @@ def load_data(file_in):
     '''
     Load harmonisation parameters and covariance matrix
     '''
+
     # matchup_dataset = "AVHRR_REAL_4_RSA_____"
     # job = "job_avh11_v6_ODR_101_11.nml"
     # matchup_dataset_begin = "19911004"
@@ -117,14 +116,7 @@ def plot_parameters(ds, npar, sensor):
         Y = np.array([Y0,Y1,Y2,Y3])    
         df = pd.DataFrame({'a(0)': Y0, 'a(1)': Y1, 'a(2)': Y2, 'a(3)': Y3}, index=list(sensor))                  
         ax = df.plot(kind="bar", subplots=True, layout=(4, 1), sharey=False, sharex=True, rot=90, fontsize=12, legend=False)
- 
-    fig = ax[0][0].get_figure()
-    ax0 = fig.add_subplot(111, frame_on=False)   # creating a single axes
-    ax0.set_xticks([])
-    ax0.set_yticks([])
-    for i,axi in np.ndenumerate(ax):
-        axi.set_title(axi.get_title(),{'size' : 12}) 
-        
+    
     plt.tight_layout()
     file_str = "bestcase_parameters.png"
     plt.savefig(file_str)    
@@ -162,6 +154,51 @@ def plot_covariance(ds):
     title_str = "Covariance matrix: max=" + "{0:.3e}".format(Xmax)
     plt.title(title_str)
     plt.savefig('bestcase_covariance_matrix.png')    
+
+def calc_eigen(ds):
+    '''
+    Calculate eigenvalues and eigenvectors from the harmonisation parameter covariance matrix
+    '''
+    # Harmonisation parameter covariance matrix: (27, 27)
+    parameter_covariance_matrix = ds['parameter_covariance_matrix'] 
+    X = parameter_covariance_matrix
+
+    eigenval, eigenvec = np.linalg.eig(X)
+#    print('Eigenvalues \n%s' %eigenval)   
+#    print('Eigenvectors \n%s' %eigenvec)
+
+    return eigenval, eigenvec
+
+def plot_eigenval(eigenval):
+    '''
+    Plot eigenvalues as a scree plot
+    '''
+    Y = eigenval / max(eigenval)
+    N = len(Y)    
+    X = np.arange(0,N)
+
+    fig = plt.figure()
+    plt.fill_between(X, Y, step="post", alpha=0.4)
+    plt.plot(X, Y, drawstyle='steps-post')
+    plt.tick_params(labelsize=12)
+    plt.ylabel("Relative value", fontsize=12)
+    title_str = 'Scree plot: eigenvalue max=' + "{0:.5f}".format(eigenval.max())
+    plt.title(title_str)
+    plt.savefig('bestcase_eigenvalues.png')    
+
+def plot_eigenvec(eigenvec):
+    '''
+    Plot eigenvector matrix as a heatmap
+    '''
+    X = eigenvec
+
+    fig = plt.figure()
+    sns.heatmap(X, center=0, linewidths=.5, cmap="viridis", cbar=True)
+#    sns.heatmap(X, vmin=0, vmax=1, linewidths=.5, cmap="viridis", cbar=True)
+#    sns.heatmap(X, center=0, linewidths=.5, annot=True, fmt="f", cmap="viridis", cbar=True)
+
+    plt.title('Eigenvector matrix')
+    plt.savefig('bestcase_eigenvectors.png')    
 
 def calc_ensemble(ds):
     '''
@@ -229,7 +266,7 @@ def calc_ensemble(ds):
 
 def plot_ensemble_histograms(ds, draws, npar, sensor):
     '''
-    Plot histograms of ensemble coefficient deltas
+    Plot histograms of ensemble coefficient z-scores
     '''
 
     parameter = ds['parameter'] 
@@ -249,26 +286,27 @@ def plot_ensemble_histograms(ds, draws, npar, sensor):
         fig, ax = plt.subplots(npar,1,sharex=True)
         for j in range(0,npar):
             k = (npar*i)+j
-            a_mean = Y[:,k].mean()
-            Z = 100.0 * (Y[:,k] - a_mean) / a_mean
+            Y_mean = Y[:,k].mean()
+            Y_std = Y[:,k].std()
+            Z = (Y[:,k] - Y_mean) / Y_std
             hist, bins = np.histogram(Z, bins=100, density=False) 
-#            hist = hist/hist.sum()
+            hist = hist/hist.sum()
             ax[j].fill_between(bins[0:-1], hist, step="post", alpha=0.4)
             ax[j].plot(bins[0:-1], hist, drawstyle='steps-post')
-#            ax[j].plot((a_mean,a_mean), (0,hist.max()), 'r-')   
             ax[j].plot((0,0), (0,hist.max()), 'r-')   
             ax[j].tick_params(labelsize=10)
-            ax[j].set_ylabel('Count', fontsize=10)
-            title_str = sensor[i] + ": a(" + str(j+1) + ")=" + "{0:.3e}".format(a_mean)
+            ax[j].set_xlim([-6,6])
+            ax[j].set_ylabel('Prob. density', fontsize=10)
+            title_str = sensor[i] + ": a(" + str(j+1) + ")=" + "{0:.3e}".format(Y_mean)
             ax[j].set_title(title_str, fontsize=10)
             
-        plt.xlabel(r'$\Delta$a / %', fontsize=10)
+        plt.xlabel(r'z-score', fontsize=10)
         file_str = "ensemble_histograms_" + sensor[i] + ".png"
         plt.savefig(file_str)    
 
 def plot_ensemble_coefficients(ds, draws, npar, sensor):
     '''
-    Plot ensemble coefficient deltas
+    Plot ensemble coefficient z-scores
     '''
 
     parameter = ds['parameter'] 
@@ -280,7 +318,7 @@ def plot_ensemble_coefficients(ds, draws, npar, sensor):
     M = len(X)
 
     #
-    # Ensemble coefficients plotted as FPE (%) anomalies from best value
+    # Ensemble coefficients plotted as z-scores relative to best value
     #
 
     for i in range(0,len(sensor)):
@@ -288,68 +326,165 @@ def plot_ensemble_coefficients(ds, draws, npar, sensor):
         fig, ax = plt.subplots(npar,1,sharex=True)
         for j in range(0,npar):
             k = (npar*i)+j
-            a_mean = Y[:,k].mean()
-            Z = (100.0 * (Y[:,k] - a_mean) / a_mean)
+            Y_mean = Y[:,k].mean()
+            Y_std = Y[:,k].std()
+            Z =  (Y[:,k] - Y_mean) / Y_std
             ax[j].plot(np.arange(0,N),Z)            
             ax[j].plot((0,N), (0,0), 'r-')   
             ax[j].tick_params(labelsize=10)
-            ax[j].set_ylabel(r'$\Delta$a / %', fontsize=10)
-            title_str = sensor[i] + ": a(" + str(j+1) + ")=" + "{0:.3e}".format(a_mean)
+            ax[j].set_ylabel(r'z-score', fontsize=10)
+            ax[j].set_ylim([-6,6])
+            title_str = sensor[i] + ": a(" + str(j+1) + ")=" + "{0:.3e}".format(Y_mean)
             ax[j].set_title(title_str, fontsize=10)
 
         plt.xlabel('Ensemble member', fontsize=10)
         file_str = "ensemble_coefficients_" + sensor[i] + ".png"
         plt.savefig(file_str)    
 
-# =======================================    
-# AUXILIARY STATISTICS
-# =======================================    
+def calc_equiprobable(ds, draws, npar, sensor):
+    '''
+    Extract decile members
+    '''
 
-def calc_eigen(ds):
-    '''
-    Calculate eigenvalues and eigenvectors from the harmonisation parameter covariance matrix
-    '''
-    # Harmonisation parameter covariance matrix: (27, 27)
+    parameter = ds['parameter'] 
     parameter_covariance_matrix = ds['parameter_covariance_matrix'] 
-    X = parameter_covariance_matrix
 
-    eigenval, eigenvec = np.linalg.eig(X)
-#    print('Eigenvalues \n%s' %eigenval)   
-#    print('Eigenvectors \n%s' %eigenvec)
+    X = parameter
+    Y = draws
+    N = len(draws)
+    M = len(X)
 
-    return eigenval, eigenvec
+    Y_mean = Y.mean(axis=0)
+    Y_sd = Y.std(axis=0)
+    Z = (Y - Y_mean) / Y_sd
 
-def plot_eigenval(eigenval):
+    F = np.array(range(N))/float(N)    
+#    Z_cdf = np.empty(shape=(N,M))
+    n = 10
+    ensemble = np.empty(shape=(n,M))
+
+    for i in range(M):
+
+        # 
+        # CDF of Z-scores of draw distribution
+        #
+
+        Z_cdf = np.sort(Z[:,i])
+  
+        #
+        # Construct ensemble from decile values of Z_cdf
+        # 
+
+        for j in range(n):
+
+            idx = int(j * (N/n))
+            ensemble[j,i] = Z_cdf[idx]
+
+    nbins = 10
+    Z_est = np.empty(shape=(nbins,M))
+
+    fig, ax = plt.subplots()
+    for i in range(M):
+
+        #
+        # Empirical CDF
+        #
+
+        hist, edges = np.histogram( Z[:,i], bins = nbins, density = True )
+        binwidth = edges[1] - edges[0]
+        Z_est[:,i] = np.cumsum(hist) * binwidth
+        F_est = edges[1:]
+        plt.plot(F_est,Z_est[:,i])
+
+    plt.savefig('Z_est.png')
+
+    return ensemble
+
+def plot_ensemble(ds, ensemble, npar, sensor):
     '''
-    Plot eigenvalues as a scree plot
+    Plot ensemble
     '''
-    Y = eigenval / max(eigenval)
-    N = len(Y)    
-    X = np.arange(0,N)
 
-    fig = plt.figure()
-    plt.fill_between(X, Y, step="post", alpha=0.4)
-    plt.plot(X, Y, drawstyle='steps-post')
-    plt.tick_params(labelsize=12)
-    plt.ylabel("Relative value", fontsize=12)
-    title_str = 'Scree plot: eigenvalue max=' + "{0:.5f}".format(eigenval.max())
-    plt.title(title_str)
-    plt.savefig('bestcase_eigenvalues.png')    
+    parameter = ds['parameter'] 
 
-def plot_eigenvec(eigenvec):
-    '''
-    Plot eigenvector matrix as a heatmap
-    '''
-    X = eigenvec
+    X = np.arange(0,len(sensor))
+    Y = np.array(parameter)
 
-    fig = plt.figure()
-    sns.heatmap(X, center=0, linewidths=.5, cmap="viridis", cbar=True)
-#    sns.heatmap(X, vmin=0, vmax=1, linewidths=.5, cmap="viridis", cbar=True)
-#    sns.heatmap(X, center=0, linewidths=.5, annot=True, fmt="f", cmap="viridis", cbar=True)
+    if npar == 3:
 
-    plt.title('Eigenvector matrix')
-    plt.savefig('bestcase_eigenvectors.png')    
+        idx0 = np.arange(0, len(Y), 3)        
+        idx1 = np.arange(1, len(Y), 3)        
+        idx2 = np.arange(2, len(Y), 3) 
+        df = pd.DataFrame()
+        Y0 = []
+        Y1 = []
+        Y2 = []
+        for i in range(0,len(X)): 
+            k0 = idx0[i]
+            k1 = idx1[i]
+            k2 = idx2[i]
+            Y0.append(Y[k0])
+            Y1.append(Y[k1])
+            Y2.append(Y[k2])
+        Y = np.array([Y0,Y1,Y2])    
+        df = pd.DataFrame({'a(0)': Y0, 'a(1)': Y1, 'a(2)': Y2}, index=list(sensor))                  
+    elif npar == 4:
 
+        idx0 = np.arange(0, len(Y), 4)        
+        idx1 = np.arange(1, len(Y), 4)        
+        idx2 = np.arange(2, len(Y), 4) 
+        idx3 = np.arange(3, len(Y), 4) 
+        df = pd.DataFrame()
+        Y0 = []
+        Y1 = []
+        Y2 = []
+        Y3 = []
+        for i in range(0,len(X)): 
+            k0 = idx0[i]
+            k1 = idx1[i]
+            k2 = idx2[i]
+            k3 = idx3[i]
+            Y0.append(Y[k0])
+            Y1.append(Y[k1])
+            Y2.append(Y[k2])
+            Y3.append(Y[k3])
+        Y = np.array([Y0,Y1,Y2,Y3])    
+        df = pd.DataFrame({'a(0)': Y0, 'a(1)': Y1, 'a(2)': Y2, 'a(3)': Y3}, index=list(sensor))                  
+
+    
+    for j in range(0,npar):
+        k = (npar*i)+j
+
+
+    for i in range(0,npar):
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+
+        colors = ['r', 'g', 'b', 'y']
+        yticks = [3, 2, 1, 0]
+        for c, k in zip(colors, yticks):
+            # Generate the random data for the y=k 'layer'.
+            xs = np.arange(20)
+            ys = np.random.rand(20)
+
+            # You can provide either a single color or an array with the same length as
+            # xs and ys. To demonstrate this, we color the first bar of each set cyan.
+            cs = [c] * len(xs)
+            cs[0] = 'c'
+
+            # Plot the bar graph given by xs and ys on the plane y=k with 80% opacity.
+            ax.bar(xs, ys, zs=k, zdir='y', color=cs, alpha=0.8)
+
+        # On the y axis let's only label the discrete values that we have data for.
+        ax.set_yticks(yticks)
+
+        ax.set_xlabel('Sensor', fontsize=10)
+        ax.set_ylabel('Ensemble member', fontsize=10)
+        z_str = 'Coefficient: a(' + str(i) + ')'
+        ax.set_zlabel(z_str, fontsize=10)
+        file_str = "ensemble_coefficient_" + str(i) + ".png"
+        plt.savefig(file_str)    
 
 # =======================================    
 # MAIN BLOCK
@@ -372,10 +507,6 @@ if __name__ == "__main__":
 
     ds = load_data(file_in)
     draws = calc_ensemble(ds)
-    plot_covariance(ds)
-    eigenval, eigenvec = calc_eigen(ds)
-    plot_eigenval(eigenval)
-    plot_eigenvec(eigenvec)
 
     # 
     # Fast load of draws array
@@ -383,7 +514,15 @@ if __name__ == "__main__":
 
     # draws = np_load('draws.npy')
 
-    plot_parameters(ds, npar, sensor)
-    plot_ensemble_histograms(ds, draws, npar, sensor)
+    ensemble = calc_equiprobable(ds, draws, npar, sensor)
     plot_ensemble_coefficients(ds, draws, npar, sensor)
+    plot_ensemble_histograms(ds, draws, npar, sensor)
+#    plot_ensemble(ds, ensemble, npar, sensor)
+
+    plot_parameters(ds, npar, sensor)
+    plot_covariance(ds)
+    eigenval, eigenvec = calc_eigen(ds)
+    plot_eigenval(eigenval)
+    plot_eigenvec(eigenvec)
+
 
