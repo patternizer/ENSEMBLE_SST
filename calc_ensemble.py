@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.4
-# 28 March, 2019
+# Version 0.5
+# 1 April, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -64,52 +64,80 @@ def load_data(file_in):
 
     return ds
 
-def plot_parameters(ds):
+def plot_parameters(ds, npar, sensor):
     '''
     Plot harmonisation parameters of best-case
     '''
-    # Harmonisation parameters: (27,)
+
     parameter = ds['parameter'] 
 
-    sensor = ['METOPA','NOAA19','NOAA18','NOAA17','NOAA16','NOAA15','NOAA14','NOAA12','NOAA11']
-
-    X = np.arange(0,9)
+    X = np.arange(0,len(sensor))
     Y = np.array(parameter)
-    
-    idx0 = np.arange(0, len(Y), 3)        
-    idx1 = np.arange(1, len(Y), 3)        
-    idx2 = np.arange(2, len(Y), 3)        
-    df = pd.DataFrame()
-    Y0 = []
-    Y1 = []
-    Y2 = []
-    for i in range(0,len(X)): 
-        k0 = idx0[i]
-        k1 = idx1[i]
-        k2 = idx2[i]
-        Y0.append(Y[k0])
-        Y1.append(Y[k1])
-        Y2.append(Y[k2])
-    Y = np.array([Y0,Y1,Y2])    
 
-    df = pd.DataFrame({'a(0)': Y0, 'a(1)': Y1, 'a(2)': Y2}, index=list(sensor))                  
-    ax = df.plot(kind="bar", subplots=True, layout=(3, 1), sharey=False, sharex=True, rot=90, fontsize=12, legend=False)
-    fig = ax[0][0].get_figure()
-    ax0 = fig.add_subplot(111, frame_on=False)   # creating a single axes
-    ax0.set_xticks([])
-    ax0.set_yticks([])
-    for i,axi in np.ndenumerate(ax):
-        axi.set_title(axi.get_title(),{'size' : 12}) 
+    if npar == 3:
 
-    plt.tight_layout()
-    file_str = "bestcase_parameters.png"
-    plt.savefig(file_str)    
+        idx0 = np.arange(0, len(Y), 3)        
+        idx1 = np.arange(1, len(Y), 3)        
+        idx2 = np.arange(2, len(Y), 3) 
+        df = pd.DataFrame()
+        Y0 = []
+        Y1 = []
+        Y2 = []
+        for i in range(0,len(X)): 
+            k0 = idx0[i]
+            k1 = idx1[i]
+            k2 = idx2[i]
+            Y0.append(Y[k0])
+            Y1.append(Y[k1])
+            Y2.append(Y[k2])
+        Y = np.array([Y0,Y1,Y2])    
+
+        df = pd.DataFrame({'a(0)': Y0, 'a(1)': Y1, 'a(2)': Y2}, index=list(sensor))                  
+        ax = df.plot(kind="bar", subplots=True, layout=(3, 1), sharey=False, sharex=True, rot=90, fontsize=12, legend=False)
+        fig = ax[0][0].get_figure()
+        ax0 = fig.add_subplot(111, frame_on=False)   # creating a single axes
+
+    elif npar == 4:
+
+        idx0 = np.arange(0, len(Y), 4)        
+        idx1 = np.arange(1, len(Y), 4)        
+        idx2 = np.arange(2, len(Y), 4) 
+        idx3 = np.arange(3, len(Y), 4) 
+        df = pd.DataFrame()
+        Y0 = []
+        Y1 = []
+        Y2 = []
+        Y3 = []
+        for i in range(0,len(X)): 
+            k0 = idx0[i]
+            k1 = idx1[i]
+            k2 = idx2[i]
+            k3 = idx3[i]
+            Y0.append(Y[k0])
+            Y1.append(Y[k1])
+            Y2.append(Y[k2])
+            Y3.append(Y[k3])
+        Y = np.array([Y0,Y1,Y2,Y3])    
+
+        df = pd.DataFrame({'a(0)': Y0, 'a(1)': Y1, 'a(2)': Y2, 'a(3)': Y3}, index=list(sensor))                  
+        ax = df.plot(kind="bar", subplots=True, layout=(4, 1), sharey=False, sharex=True, rot=90, fontsize=12, legend=False)
+        fig = ax[0][0].get_figure()
+        ax0 = fig.add_subplot(1111, frame_on=False)   # creating a single axes
+
+        ax0.set_xticks([])
+        ax0.set_yticks([])
+        for i,axi in np.ndenumerate(ax):
+            axi.set_title(axi.get_title(),{'size' : 12}) 
+
+        plt.tight_layout()
+        file_str = "bestcase_parameters.png"
+        plt.savefig(file_str)    
 
 def plot_covariance(ds):
     '''
     Plot harmonisation parameter covariance matrix as a heatmap
     '''
-    # Harmonisation parameter covariance matrix: (27, 27)
+
     parameter_covariance_matrix = ds['parameter_covariance_matrix'] 
 
     X = np.array(parameter_covariance_matrix)
@@ -125,7 +153,6 @@ def plot_covariance(ds):
 #    sns.heatmap(Y, center=0, linewidths=.5, cmap="viridis", cbar=True, vmin=-1.0e-9, vmax=1.0e-6, cbar_kws={"extend":'both', "format":'%.3e'})
 
     sns.heatmap(Y, center=0, linewidths=.5, cmap="viridis", cbar=True, vmin=-1.0e-9, vmax=1.0e-6, cbar_kws={"extend":'both', "format":ticker.FuncFormatter(fmt)})
-
 
     #
     # Mask out upper triangle
@@ -204,13 +231,12 @@ def calc_ensemble(ds):
 
     return draws
 
-def plot_ensemble_histograms(ds, draws):
+def plot_ensemble_histograms(ds, draws, npar, sensor):
     '''
     Plot histograms of ensemble coefficient deltas
     '''
-    # Harmonisation parameters: (27,)
+
     parameter = ds['parameter'] 
-    # Harmonisation parameter covariance matrix: (27, 27)
     parameter_covariance_matrix = ds['parameter_covariance_matrix'] 
 
     X = parameter
@@ -218,17 +244,15 @@ def plot_ensemble_histograms(ds, draws):
     N = len(draws)
     M = len(X)
 
-    sensor = ['METOPA','NOAA19','NOAA18','NOAA17','NOAA16','NOAA15','NOAA14','NOAA12','NOAA11']
-
     #
     # Histograms of ensemble variability
     #
 
-    for i in range(0,9):
+    for i in range(0,len(sensor)):
 
-        fig, ax = plt.subplots(3,1,sharex=True)
-        for j in range(0,3):
-            k = (3*i)+j
+        fig, ax = plt.subplots(npar,1,sharex=True)
+        for j in range(0,npar):
+            k = (npar*i)+j
             a_mean = Y[:,k].mean()
             Z = 100.0 * (Y[:,k] - a_mean) / a_mean
             hist, bins = np.histogram(Z, bins=100, density=False) 
@@ -246,13 +270,12 @@ def plot_ensemble_histograms(ds, draws):
         file_str = "ensemble_histograms_" + sensor[i] + ".png"
         plt.savefig(file_str)    
 
-def plot_ensemble_coefficients(ds, draws):
+def plot_ensemble_coefficients(ds, draws, npar, sensor):
     '''
     Plot ensemble coefficient deltas
     '''
-    # Harmonisation parameters: (27,)
+
     parameter = ds['parameter'] 
-    # Harmonisation parameter covariance matrix: (27, 27)
     parameter_covariance_matrix = ds['parameter_covariance_matrix'] 
 
     X = parameter
@@ -260,17 +283,15 @@ def plot_ensemble_coefficients(ds, draws):
     N = len(draws)
     M = len(X)
 
-    sensor = ['METOPA','NOAA19','NOAA18','NOAA17','NOAA16','NOAA15','NOAA14','NOAA12','NOAA11']
-
     #
     # Ensemble coefficients plotted as FPE (%) anomalies from best value
     #
 
-    for i in range(0,9):
+    for i in range(0,len(sensor)):
 
-        fig, ax = plt.subplots(3,1,sharex=True)
-        for j in range(0,3):
-            k = (3*i)+j
+        fig, ax = plt.subplots(npar,1,sharex=True)
+        for j in range(0,npar):
+            k = (npar*i)+j
             a_mean = Y[:,k].mean()
             Z = (100.0 * (Y[:,k] - a_mean) / a_mean)
             ax[j].plot(np.arange(0,N),Z)            
@@ -333,60 +354,6 @@ def plot_eigenvec(eigenvec):
     plt.title('Eigenvector matrix')
     plt.savefig('bestcase_eigenvectors.png')    
 
-def plot_sample_binormal():
-    '''
-    # -------------------------------
-    # TEST CASE: SAMPLE FROM BINORMAL
-    # -------------------------------
-    '''
-
-    #
-    # Generate random binormal data
-    #
-    Xmean = np.zeros(2) # [0,0]
-    Xcov = np.eye(2) # [[1,0],[0,1]]
-    size = 10000
-    data1 = np.random.multivariate_normal(Xmean, Xcov, size)
-
-    #
-    # Make 100 draws 
-    #
-
-#    X1 = np.random.rand(100)
-#    X2 = np.random.rand(100)
-    X1 = data1[:,0]
-    X2 = data1[:,1]
-    Xmean = [X1.mean(), X2.mean()]
-    X = np.stack((X1, X2), axis=0)
-    Xcov = np.cov(X)
-#    Xcov = [[0.9,0.1],[0.1,0.9]]
-    print(Xmean)
-    print(Xcov)
-    size = 100
-    data2 = np.random.multivariate_normal(Xmean, Xcov, size)        
-    df1 = pd.DataFrame(data1, columns=['x1', 'x2'])
-    df2 = pd.DataFrame(data2, columns=['y1', 'y2'])
-
-    #
-    # Plot joint distribution
-    #
-
-    # colours = ["#9b59b6", "#3498db", "#95a5a6", "#e74c3c", "#34495e", "#2ecc71"]
-    #             purple,      blue,      grey,    orange,      navy,     green
-    fig, ax = plt.subplots()
-    graph = sns.jointplot(x=df1.x1, y=df1.x2, kind="hex", space=0, color="#3498db")
-    plt.subplots_adjust(left=0.1, right=0.8, top=0.9, bottom=0.1)
-    cax = graph.fig.add_axes([.81, .15, .02, .5])  # x, y, width, height
-    cbar = plt.colorbar(cax=cax)
-    cbar.set_label('count')
-    graph.x = df2.y1
-    graph.y = df2.y2
-    graph.plot_joint(plt.scatter, marker="x", color="#e74c3c", s=2)
-    graph.x = X1.mean()
-    graph.y = X2.mean()
-    graph.plot_joint(plt.scatter, marker="x", color="r", s=50)    
-    fig.suptitle('2D-sampling from binormal distribution')
-    plt.savefig('sampled_binormal.png')    
 
 # =======================================    
 # MAIN BLOCK
@@ -394,25 +361,33 @@ def plot_sample_binormal():
     
 if __name__ == "__main__":
 
-#    parser = OptionParser("usage: %prog file_in")
+#    parser = OptionParser("usage: %prog file_in npar")
 #    (options, args) = parser.parse_args()
 #    file_in = args[0]
+#    npar = args[1]
 
-    file_in = "harm_FO_3.0_27b18eb_ODR_101_11_R____AVHRR_REAL_4_RSA______19911004_20151231.nc"
+#    file_in = "FIDUCEO_Harmonisation_Data_37.nc"
+    file_in = "FIDUCEO_Harmonisation_Data_11.nc"
+#    file_in = "FIDUCEO_Harmonisation_Data_12.nc"
+#    npar = 3
+    npar = 4
+
+    sensor = ['METOPA','NOAA19','NOAA18','NOAA17','NOAA16','NOAA15','NOAA14','NOAA12','NOAA11']
+
     ds = load_data(file_in)
     draws = calc_ensemble(ds)
+    plot_covariance(ds)
     eigenval, eigenvec = calc_eigen(ds)
     plot_eigenval(eigenval)
     plot_eigenvec(eigenvec)
-    plot_parameters(ds)
-    plot_covariance(ds)
-    plot_sample_binormal()
 
     # 
     # Fast load of draws array
     #
-    draws = np_load('draws.npy')
-    plot_ensemble_histograms(ds, draws)
-    plot_ensemble_coefficients(ds, draws)
 
+    # draws = np_load('draws.npy')
+
+    plot_parameters(ds, npar, sensor)
+    plot_ensemble_histograms(ds, draws, npar, sensor)
+    plot_ensemble_coefficients(ds, draws, npar, sensor)
 
