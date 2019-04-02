@@ -91,11 +91,8 @@ def plot_parameters(ds, npar, sensor):
             Y1.append(Y[k1])
             Y2.append(Y[k2])
         Y = np.array([Y0,Y1,Y2])    
-
         df = pd.DataFrame({'a(0)': Y0, 'a(1)': Y1, 'a(2)': Y2}, index=list(sensor))                  
         ax = df.plot(kind="bar", subplots=True, layout=(3, 1), sharey=False, sharex=True, rot=90, fontsize=12, legend=False)
-        fig = ax[0][0].get_figure()
-        ax0 = fig.add_subplot(111, frame_on=False)   # creating a single axes
 
     elif npar == 4:
 
@@ -118,20 +115,19 @@ def plot_parameters(ds, npar, sensor):
             Y2.append(Y[k2])
             Y3.append(Y[k3])
         Y = np.array([Y0,Y1,Y2,Y3])    
-
         df = pd.DataFrame({'a(0)': Y0, 'a(1)': Y1, 'a(2)': Y2, 'a(3)': Y3}, index=list(sensor))                  
         ax = df.plot(kind="bar", subplots=True, layout=(4, 1), sharey=False, sharex=True, rot=90, fontsize=12, legend=False)
-        fig = ax[0][0].get_figure()
-        ax0 = fig.add_subplot(1111, frame_on=False)   # creating a single axes
-
-        ax0.set_xticks([])
-        ax0.set_yticks([])
-        for i,axi in np.ndenumerate(ax):
-            axi.set_title(axi.get_title(),{'size' : 12}) 
-
-        plt.tight_layout()
-        file_str = "bestcase_parameters.png"
-        plt.savefig(file_str)    
+ 
+    fig = ax[0][0].get_figure()
+    ax0 = fig.add_subplot(111, frame_on=False)   # creating a single axes
+    ax0.set_xticks([])
+    ax0.set_yticks([])
+    for i,axi in np.ndenumerate(ax):
+        axi.set_title(axi.get_title(),{'size' : 12}) 
+        
+    plt.tight_layout()
+    file_str = "bestcase_parameters.png"
+    plt.savefig(file_str)    
 
 def plot_covariance(ds):
     '''
@@ -367,8 +363,8 @@ if __name__ == "__main__":
 #    npar = args[1]
 
 #    file_in = "FIDUCEO_Harmonisation_Data_37.nc"
-    file_in = "FIDUCEO_Harmonisation_Data_11.nc"
-#    file_in = "FIDUCEO_Harmonisation_Data_12.nc"
+#    file_in = "FIDUCEO_Harmonisation_Data_11.nc"
+    file_in = "FIDUCEO_Harmonisation_Data_12.nc"
 #    npar = 3
     npar = 4
 
