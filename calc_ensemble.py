@@ -5,7 +5,7 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.6
+# Version 0.7
 # 2 April, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
@@ -394,7 +394,11 @@ def calc_equiprobable(ds, draws, npar, sensor):
         binwidth = edges[1] - edges[0]
         Z_est[:,i] = np.cumsum(hist) * binwidth
         F_est = edges[1:]
-        plt.plot(F_est,Z_est[:,i])
+        label_str = 'Ensemble member' + str(i)
+        plt.plot(F_est, Z_est[:,i], label=label_str)
+        plt.xlabel('z-score')
+        plt.ylabel('Cumulative distribution function (CDF)')
+        plt.legend()
 
     plt.savefig('Z_est.png')
 
