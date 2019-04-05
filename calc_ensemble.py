@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.9
-# 4 April, 2019
+# Version 0.10
+# 5 April, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -384,8 +384,10 @@ def plot_ensemble(ds, ensemble, npar, sensor, nens):
     '''
 
     parameter = ds['parameter'] 
+    parameter_uncertainty = ds['parameter_uncertainty'] 
 
     Y = np.array(parameter)
+    U = np.array(parameter_uncertainty)
     Z = np.array(ensemble)
 
     if npar == 3:
@@ -393,10 +395,12 @@ def plot_ensemble(ds, ensemble, npar, sensor, nens):
         idx0 = np.arange(0, len(Y), 3)        
         idx1 = np.arange(1, len(Y), 3)        
         idx2 = np.arange(2, len(Y), 3) 
-        df = pd.DataFrame()
         Y0 = []
         Y1 = []
         Y2 = []
+        U0 = []
+        U1 = []
+        U2 = []
         Z0 = []
         Z1 = []
         Z2 = []
@@ -407,12 +411,17 @@ def plot_ensemble(ds, ensemble, npar, sensor, nens):
             Y0.append(Y[k0])
             Y1.append(Y[k1])
             Y2.append(Y[k2])
+            U0.append(U[k0])
+            U1.append(U[k1])
+            U2.append(U[k2])
             Z0.append(Z[:,k0])
             Z1.append(Z[:,k1])
             Z2.append(Z[:,k2])
         Y = np.array([Y0,Y1,Y2])    
+        U = np.array([U0,U1,U2])    
         Z = np.array([Z0,Z1,Z2])    
-        dY = pd.DataFrame({'a(0)': Y0, 'a(1)': Y1, 'a(2)': Y2}, index=list(sensor))                  
+        dY = pd.DataFrame({'a(0)': Y0, 'a(1)': Y1, 'a(2)': Y2}, index=list(sensor))        
+        dU = pd.DataFrame({'a(0)': U0, 'a(1)': U1, 'a(2)': U2}, index=list(sensor))             
         dZ = pd.DataFrame({'a(0)': Z0, 'a(1)': Z1, 'a(2)': Z2}, index=list(sensor))                  
     elif npar == 4:
 
@@ -420,11 +429,14 @@ def plot_ensemble(ds, ensemble, npar, sensor, nens):
         idx1 = np.arange(1, len(Y), 4)        
         idx2 = np.arange(2, len(Y), 4) 
         idx3 = np.arange(3, len(Y), 4) 
-        df = pd.DataFrame()
         Y0 = []
         Y1 = []
         Y2 = []
         Y3 = []
+        U0 = []
+        U1 = []
+        U2 = []
+        U3 = []
         Z0 = []
         Z1 = []
         Z2 = []
@@ -438,13 +450,19 @@ def plot_ensemble(ds, ensemble, npar, sensor, nens):
             Y1.append(Y[k1])
             Y2.append(Y[k2])
             Y3.append(Y[k3])
+            U0.append(U[k0])
+            U1.append(U[k1])
+            U2.append(U[k2])
+            U3.append(U[k3])
             Z0.append(Z[:,k0])
             Z1.append(Z[:,k1])
             Z2.append(Z[:,k2])
             Z3.append(Z[:,k3])
         Y = np.array([Y0,Y1,Y2,Y3])    
+        U = np.array([U0,U1,U2,U3])    
         Z = np.array([Z0,Z1,Z2,Z3])    
-        dY = pd.DataFrame({'a(0)': Y0, 'a(1)': Y1, 'a(2)': Y2, 'a(3)': Y3}, index=list(sensor))               
+        dY = pd.DataFrame({'a(0)': Y0, 'a(1)': Y1, 'a(2)': Y2, 'a(3)': Y3}, index=list(sensor))
+        dU = pd.DataFrame({'a(0)': U0, 'a(1)': U1, 'a(2)': U2, 'a(3)': U3}, index=list(sensor))        
         dZ = pd.DataFrame({'a(0)': Z0, 'a(1)': Z1, 'a(2)': Z2, 'a(3)': Z3}, index=list(sensor))              
        
     xs = np.arange(nens)
@@ -454,21 +472,21 @@ def plot_ensemble(ds, ensemble, npar, sensor, nens):
         for j in range(0,len(sensor)):
                   
             if i == 0:
-                ys = dZ['a(0)'][j] - dY['a(0)'][j]
+                ys = (dZ['a(0)'][j] - dY['a(0)'][j]) / dU['a(0)'][j]
             elif i == 1:
-                ys = dZ['a(1)'][j] - dY['a(1)'][j]
+                ys = (dZ['a(1)'][j] - dY['a(1)'][j]) / dU['a(1)'][j] 
             elif i == 2:
-                ys = dZ['a(2)'][j] - dY['a(2)'][j]
+                ys = (dZ['a(2)'][j] - dY['a(2)'][j]) / dU['a(2)'][j] 
             elif i == 3:
-                ys = dZ['a(3)'][j] - dY['a(3)'][j]
+                ys = (dZ['a(3)'][j] - dY['a(3)'][j]) / dU['a(3)'][j] 
             plt.plot(xs, np.sort(ys), label=sensor[j])
 
         ax.set_xlabel('Ensemble member', fontsize=12)
-        ax.set_ylabel('Delta', fontsize=12)
+        ax.set_ylabel('Delta / Uncertainty', fontsize=12)
         title_str = 'Harmonisation coefficient: a(' + str(i) + ')'
         ax.set_title(title_str, fontsize=12)
         ax.legend(fontsize=8)
-        file_str = "equiprobable_delta_coefficient_" + str(i) + ".png"
+        file_str = "equiprobable_delta_uncertainty_coefficient_" + str(i) + ".png"
         plt.savefig(file_str)    
     plt.close('all')
 
@@ -483,24 +501,26 @@ if __name__ == "__main__":
 #    file_in = args[0]
 #    npar = args[1]
 
-#    file_in = "FIDUCEO_Harmonisation_Data_37.nc"
+    file_in = "FIDUCEO_Harmonisation_Data_37.nc"
 #    file_in = "FIDUCEO_Harmonisation_Data_11.nc"
-    file_in = "FIDUCEO_Harmonisation_Data_12.nc"
-#    npar = 3
-    npar = 4
+#    file_in = "FIDUCEO_Harmonisation_Data_12.nc"
+    npar = 3
+#    npar = 4
     npop = 1000000
-    nens = 100
+    nens = 10
 
     sensor = ['METOPA','NOAA19','NOAA18','NOAA17','NOAA16','NOAA15','NOAA14','NOAA12','NOAA11']
 
     ds = load_data(file_in)
-    draws = calc_ensemble(ds, npop)
+#    draws = calc_ensemble(ds, npop)
 
     # 
     # Fast load of draws array
     #
 
-    # draws = np_load('draws.npy')
+    draws = np_load('draws_37_1000000.npy')
+#    draws = np_load('draws_11_1000000.npy')
+#    draws = np_load('draws_12_1000000.npy')
 
     ensemble = calc_equiprobable(ds, draws, npar, sensor, nens, npop)
     plot_ensemble(ds, ensemble, npar, sensor, nens)
