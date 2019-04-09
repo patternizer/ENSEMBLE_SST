@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.10
-# 5 April, 2019
+# Version 0.11
+# 9 April, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -142,14 +142,15 @@ def calc_ensemble(ds, draws, npar, sensor, nens, npop):
     '''
 
     parameter = ds['parameter'] 
-    Y = draws
 
-    Y_mean = Y.mean(axis=0)
-    Y_sd = Y.std(axis=0)
-    Z = (Y - Y_mean) / Y_sd
+    draws_ave = draws.mean(axis=0)
+    draws_std = draws.std(axis=0)
+    Z = (draws - draws_mean) / draws_std
 
     ensemble = np.empty(shape=(nens,len(parameter)))
     ensemble_idx = np.empty(shape=(nens,len(parameter)))
+    ensemble_ave = np.empty(shape=(len(parameter)))
+    ensemble_std = np.empty(shape=(len(parameter)))
 
     for i in range(0,len(parameter)):
 
@@ -161,16 +162,23 @@ def calc_ensemble(ds, draws, npar, sensor, nens, npop):
         i_cdf = np.argsort(Z[:,i])
   
         #
-        # Construct ensemble from decile values of Z_cdf
+        # Construct sorted ensemble from quantile values of Z_cdf
         # 
 
         for j in range(nens):
 
             idx = int(j * (npop/nens))
             ensemble[j,i] = (Z_cdf[i_cdf[idx]] * Y_sd[i]) + Y_mean[i]
-            ensemble_idx[j,i] = int(i_cdf[idx])
+            ensemble_idx[j,i] = int(i_cdf[idx])            
 
     ensemble_idx = ensemble_idx.astype(int)
+    ensemble_ave = ensemble.mean(axis=0)
+    ensemble_std = ensemble.std(axis=0)
+
+    print(parameter - draws_ave)
+    print(parameter_uncertainty - draws_std)
+    print(parameter - ensemble_ave)
+    print(parameter_uncertainty - ensemble_std)
 
     return ensemble, ensemble_idx
 
@@ -310,8 +318,8 @@ def plot_ensemble_histograms(ds, draws, npar, sensor, nens):
     parameter_covariance_matrix = ds['parameter_covariance_matrix'] 
 
     Y = draws
-#    nbins = nens
-    nbins = 100
+    nbins = nens
+#    nbins = 100
 
     #
     # Histograms of ensemble variability
@@ -412,7 +420,7 @@ def plot_ensemble_cdf(ds, draws, npar, sensor, nens, npop):
             Z_est[:,k] = np.cumsum(hist) * binwidth
             F_est = edges[1:]
             label_str = sensor[j]
-            plt.plot(F_est, Z_est[:,k], marker='.', linewidth=0.5, label=label_str)
+            plt.plot(F_est, Z_est[:,k], marker='.', linewidth=0.25, label=label_str)
             plt.xlim([-6,6])
             plt.ylim([0,1])
             plt.xlabel('z-score')
@@ -514,6 +522,7 @@ def plot_ensemble_deltas(ds, ensemble, npar, sensor, nens):
         dY = pd.DataFrame({'a(0)': Y0, 'a(1)': Y1, 'a(2)': Y2, 'a(3)': Y3}, index=list(sensor))
         dU = pd.DataFrame({'a(0)': U0, 'a(1)': U1, 'a(2)': U2, 'a(3)': U3}, index=list(sensor)) 
         dZ = pd.DataFrame({'a(0)': Z0, 'a(1)': Z1, 'a(2)': Z2, 'a(3)': Z3}, index=list(sensor))              
+
     xs = np.arange(nens)
     for i in range(0,npar):
 
@@ -587,6 +596,38 @@ def plot_ensemble_deltas(ds, ensemble, npar, sensor, nens):
 
     plt.close('all')
 
+
+def calc_subsample_ensemble(ds, ensemble, npar, sensor, nens):
+    '''
+    Sample optimal 10 from the nens-member ensemble
+    '''
+
+    parameter = ds['parameter'] 
+    parameter_uncertainty = ds['parameter_uncertainty'] 
+
+    Y = np.array(parameter)
+    U = np.array(parameter_uncertainty)
+    E = np.array(ensemble)
+    
+    Z = np.array(ensemble)
+
+    E_mean = E.mean(axis=0)
+    E_sd = E.std(axis=0)
+    Z = (Y - Y_mean) / Y_sd
+
+    Z_cdf = np.empty(shape=(nens,len(parameter)))
+    Z_10 = np.empty(shape=(10,len(parameter)))
+    for i in range(0,len(parameter)):
+
+        Z_cdf[:,i] = np.sort(Z[:,i])
+
+    for j in range(0,10):
+        
+        n = np.linspace(0, nens, 11, endpoint=True)    
+#        Z_10[j,n]
+        
+    return ensemble_10
+
 # =======================================    
 # MAIN BLOCK
 # =======================================    
@@ -604,7 +645,7 @@ if __name__ == "__main__":
     npar = 3
 #    npar = 4
     npop = 1000000
-    nens = 10
+    nens = 1000
 
     sensor = ['METOPA','NOAA19','NOAA18','NOAA17','NOAA16','NOAA15','NOAA14','NOAA12','NOAA11']
 
