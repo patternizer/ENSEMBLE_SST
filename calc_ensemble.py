@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.11
-# 9 April, 2019
+# Version 0.12
+# 10 April, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -149,8 +149,6 @@ def calc_ensemble(ds, draws, npar, sensor, nens, npop):
 
     ensemble = np.empty(shape=(nens,len(parameter)))
     ensemble_idx = np.empty(shape=(nens,len(parameter)))
-    ensemble_ave = np.empty(shape=(len(parameter)))
-    ensemble_std = np.empty(shape=(len(parameter)))
 
     for i in range(0,len(parameter)):
 
@@ -175,10 +173,10 @@ def calc_ensemble(ds, draws, npar, sensor, nens, npop):
     ensemble_ave = ensemble.mean(axis=0)
     ensemble_std = ensemble.std(axis=0)
 
-    print(parameter - draws_ave)
-    print(parameter_uncertainty - draws_std)
-    print(parameter - ensemble_ave)
-    print(parameter_uncertainty - ensemble_std)
+    print("best_mean - mean(sample):", (parameter - draws_ave) )
+    print("best_uncertainty - std(sample):", (parameter_uncertainty - draws_std) )
+    print("best_mean - mean(ensemble):", (parameter - ensemble_ave) )
+    print("best_uncertainty - std(ensemble):", (parameter_uncertainty - ensemble_std) )
 
     return ensemble, ensemble_idx
 
@@ -662,14 +660,16 @@ if __name__ == "__main__":
 
     eigenval, eigenvec = calc_eigen(ds)
     ensemble, ensemble_idx = calc_ensemble(ds, draws, npar, sensor, nens, npop)
-    plot_parameters(ds, npar, sensor)
-    plot_covariance(ds)
-    plot_eigenval(eigenval)
-    plot_eigenvec(eigenvec)
-    plot_ensemble_coefficients(ds, draws, npar, sensor, npop)
-    plot_ensemble_histograms(ds, draws, npar, sensor, nens)
-    plot_ensemble_deltas(ds, ensemble, npar, sensor, nens)
-    plot_ensemble_cdf(ds, draws, npar, sensor, nens, npop)
+#    ensemble_10 = calc_subsample_ensemble(ds, ensemble, npar, sensor, nens)
+
+#    plot_parameters(ds, npar, sensor)
+#    plot_covariance(ds)
+#    plot_eigenval(eigenval)
+#    plot_eigenvec(eigenvec)
+#    plot_ensemble_coefficients(ds, draws, npar, sensor, npop)
+#    plot_ensemble_histograms(ds, draws, npar, sensor, nens)
+#    plot_ensemble_deltas(ds, ensemble, npar, sensor, nens)
+#    plot_ensemble_cdf(ds, draws, npar, sensor, nens, npop)
 
 
 
