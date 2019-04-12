@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.12
-# 10 April, 2019
+# Version 0.13
+# 12 April, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -142,10 +142,11 @@ def calc_ensemble(ds, draws, npar, sensor, nens, npop):
     '''
 
     parameter = ds['parameter'] 
+    parameter_uncertainty = ds['parameter_uncertainty'] 
 
     draws_ave = draws.mean(axis=0)
     draws_std = draws.std(axis=0)
-    Z = (draws - draws_mean) / draws_std
+    Z = (draws - draws_ave) / draws_std
 
     ensemble = np.empty(shape=(nens,len(parameter)))
     ensemble_idx = np.empty(shape=(nens,len(parameter)))
@@ -166,7 +167,7 @@ def calc_ensemble(ds, draws, npar, sensor, nens, npop):
         for j in range(nens):
 
             idx = int(j * (npop/nens))
-            ensemble[j,i] = (Z_cdf[i_cdf[idx]] * Y_sd[i]) + Y_mean[i]
+            ensemble[j,i] = (Z_cdf[i_cdf[idx]] * draws_std[i]) + draws_ave[i]
             ensemble_idx[j,i] = int(i_cdf[idx])            
 
     ensemble_idx = ensemble_idx.astype(int)
@@ -594,7 +595,6 @@ def plot_ensemble_deltas(ds, ensemble, npar, sensor, nens):
 
     plt.close('all')
 
-
 def calc_subsample_ensemble(ds, ensemble, npar, sensor, nens):
     '''
     Sample optimal 10 from the nens-member ensemble
@@ -611,20 +611,19 @@ def calc_subsample_ensemble(ds, ensemble, npar, sensor, nens):
 
     E_mean = E.mean(axis=0)
     E_sd = E.std(axis=0)
+    Y_mean = Y.mean(axis=0)
+    Y_sd = Y.std(axis=0)
     Z = (Y - Y_mean) / Y_sd
 
     Z_cdf = np.empty(shape=(nens,len(parameter)))
     Z_10 = np.empty(shape=(10,len(parameter)))
-    for i in range(0,len(parameter)):
-
-        Z_cdf[:,i] = np.sort(Z[:,i])
-
-    for j in range(0,10):
-        
-        n = np.linspace(0, nens, 11, endpoint=True)    
+#    for i in range(0,len(parameter)):
+#        Z_cdf[:,i] = np.sort(Z[:,i])
+#    for j in range(0,10):        
+#        n = np.linspace(0, nens, 11, endpoint=True)    
 #        Z_10[j,n]
         
-    return ensemble_10
+#    return ensemble_10
 
 # =======================================    
 # MAIN BLOCK
@@ -643,7 +642,7 @@ if __name__ == "__main__":
     npar = 3
 #    npar = 4
     npop = 1000000
-    nens = 1000
+    nens = 10
 
     sensor = ['METOPA','NOAA19','NOAA18','NOAA17','NOAA16','NOAA15','NOAA14','NOAA12','NOAA11']
 
@@ -660,16 +659,16 @@ if __name__ == "__main__":
 
     eigenval, eigenvec = calc_eigen(ds)
     ensemble, ensemble_idx = calc_ensemble(ds, draws, npar, sensor, nens, npop)
-#    ensemble_10 = calc_subsample_ensemble(ds, ensemble, npar, sensor, nens)
+    ensemble_10 = calc_subsample_ensemble(ds, ensemble, npar, sensor, nens)
 
-#    plot_parameters(ds, npar, sensor)
-#    plot_covariance(ds)
-#    plot_eigenval(eigenval)
-#    plot_eigenvec(eigenvec)
-#    plot_ensemble_coefficients(ds, draws, npar, sensor, npop)
-#    plot_ensemble_histograms(ds, draws, npar, sensor, nens)
-#    plot_ensemble_deltas(ds, ensemble, npar, sensor, nens)
-#    plot_ensemble_cdf(ds, draws, npar, sensor, nens, npop)
+    plot_parameters(ds, npar, sensor)
+    plot_covariance(ds)
+    plot_eigenval(eigenval)
+    plot_eigenvec(eigenvec)
+    plot_ensemble_coefficients(ds, draws, npar, sensor, npop)
+    plot_ensemble_histograms(ds, draws, npar, sensor, nens)
+    plot_ensemble_deltas(ds, ensemble, npar, sensor, nens)
+    plot_ensemble_cdf(ds, draws, npar, sensor, nens, npop)
 
 
 
