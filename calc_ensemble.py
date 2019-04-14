@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.13
-# 12 April, 2019
+# Version 0.14
+# 14 April, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -58,18 +58,6 @@ def load_data(file_in):
     ds = xarray.open_dataset(file_in)
 
     return ds
-
-def calc_eigen(ds):
-    '''
-    Calculate eigenvalues and eigenvectors from the harmonisation parameter covariance matrix
-    '''
-
-    parameter_covariance_matrix = ds['parameter_covariance_matrix'] 
-
-    X = parameter_covariance_matrix
-    eigenval, eigenvec = np.linalg.eig(X)
-
-    return eigenval, eigenvec
 
 def calc_draws(ds, npop):
     '''
@@ -146,7 +134,23 @@ def calc_ensemble(ds, draws, npar, sensor, nens, npop):
 
     draws_ave = draws.mean(axis=0)
     draws_std = draws.std(axis=0)
+
     Z = (draws - draws_ave) / draws_std
+    Z_min = Z.min(axis=0)
+    Z_max = Z.max(axis=0)
+
+    #
+    # Calcaulte norm of each draw
+    #
+
+    Z_norm = np.empty(shape=(npop))
+    for i in range(0,npop):
+
+        Z_norm[i] = LA.norm(Z[:,i], 'fro')
+
+    #
+    # Extract deciles from CDF
+    #
 
     ensemble = np.empty(shape=(nens,len(parameter)))
     ensemble_idx = np.empty(shape=(nens,len(parameter)))
@@ -174,14 +178,16 @@ def calc_ensemble(ds, draws, npar, sensor, nens, npop):
     ensemble_ave = ensemble.mean(axis=0)
     ensemble_std = ensemble.std(axis=0)
 
-    print("best_mean - mean(sample):", (parameter - draws_ave) )
-    print("best_uncertainty - std(sample):", (parameter_uncertainty - draws_std) )
+    print("best_mean - mean(draws):", (parameter - draws_ave) )
+    print("best_uncertainty - std(draws):", (parameter_uncertainty - draws_std) )
     print("best_mean - mean(ensemble):", (parameter - ensemble_ave) )
     print("best_uncertainty - std(ensemble):", (parameter_uncertainty - ensemble_std) )
+    print("Z_min:", Z_min)
+    print("Z_max:", Z_max)
 
     return ensemble, ensemble_idx
 
-def plot_parameters(ds, npar, sensor):
+def plot_bestcase_parameters(ds, npar, sensor):
     '''
     Plot harmonisation parameters and uncertainties for best-case
     '''
@@ -193,6 +199,8 @@ def plot_parameters(ds, npar, sensor):
     U = np.array(parameter_uncertainty)
 
     if npar == 3:
+
+#        Z = a.reshape((len(Y), npar))
 
         idx0 = np.arange(0, len(Y), 3)        
         idx1 = np.arange(1, len(Y), 3)        
@@ -260,65 +268,35 @@ def plot_parameters(ds, npar, sensor):
     plt.savefig(file_str)    
     plt.close()
 
-def plot_covariance(ds):
+def plot_bestcase_covariance(ds):
     '''
-    Plot harmonisation parameter covariance matrix as a heatmap
+    Plot harmonisation parameter covariance matrix for best-case as a heatmap
     '''
 
     parameter_covariance_matrix = ds['parameter_covariance_matrix'] 
 
-    X = np.array(parameter_covariance_matrix)
-    Xmin = X.min()    
-    Xmax = X.max()    
+    Y = np.array(parameter_covariance_matrix)
 
     fig = plt.figure()
-    sns.heatmap(X, center=0, linewidths=.5, cmap="viridis", cbar=True, vmin=-1.0e-9, vmax=1.0e-6, cbar_kws={"extend":'both', "format":ticker.FuncFormatter(fmt)})
-    title_str = "Covariance matrix: max=" + "{0:.3e}".format(Xmax)
+    sns.heatmap(Y, center=0, linewidths=.5, cmap="viridis", cbar=True, vmin=-1.0e-9, vmax=1.0e-6, cbar_kws={"extend":'both', "format":ticker.FuncFormatter(fmt)})
+    title_str = "Covariance matrix: max=" + "{0:.3e}".format(Y.max())
     plt.title(title_str)
     plt.savefig('bestcase_covariance_matrix.png')    
     plt.close()
 
-def plot_eigenval(eigenval):
+def plot_population_histograms(ds, draws, npar, sensor, nens):
     '''
-    Plot eigenvalues as a scree plot
-    '''
-
-    Y = eigenval / max(eigenval)
-
-    fig = plt.figure()
-    plt.fill_between( np.arange(0,len(Y)), Y, step="post", alpha=0.4)
-    plt.plot( np.arange(0,len(Y)), Y, drawstyle='steps-post')
-    plt.tick_params(labelsize=12)
-    plt.ylabel("Relative value", fontsize=12)
-    title_str = 'Scree plot: eigenvalue max=' + "{0:.5f}".format(eigenval.max())
-    plt.title(title_str)
-    plt.savefig('bestcase_eigenvalues.png')    
-    plt.close()
-
-def plot_eigenvec(eigenvec):
-    '''
-    Plot eigenvector matrix as a heatmap
-    '''
-
-    X = eigenvec
-
-    fig = plt.figure()
-    sns.heatmap(X, center=0, linewidths=.5, cmap="viridis", cbar=True)
-    plt.title('Eigenvector matrix')
-    plt.savefig('bestcase_eigenvectors.png')    
-    plt.close()
-
-def plot_ensemble_histograms(ds, draws, npar, sensor, nens):
-    '''
-    Plot histograms of ensemble coefficient z-scores
+    Plot histograms of population coefficient z-scores
     '''
 
     parameter = ds['parameter'] 
     parameter_covariance_matrix = ds['parameter_covariance_matrix'] 
 
-    Y = draws
-    nbins = nens
-#    nbins = 100
+    draws_ave = draws.mean(axis=0)
+    draws_std = draws.std(axis=0)
+    Z = (draws - draws_ave) / draws_std
+#    nbins = nens
+    nbins = 100
 
     #
     # Histograms of ensemble variability
@@ -330,10 +308,7 @@ def plot_ensemble_histograms(ds, draws, npar, sensor, nens):
         for j in range(0,npar):
 
             k = (npar*i)+j
-            Y_mean = Y[:,k].mean()
-            Y_std = Y[:,k].std()
-            Z = (Y[:,k] - Y_mean) / Y_std
-            hist, bins = np.histogram(Z, bins=nbins, density=False) 
+            hist, bins = np.histogram(Z[:,k], bins=nbins, density=False) 
             hist = hist/hist.sum()
             ax[j].fill_between(bins[0:-1], hist, step="post", alpha=0.4)
             ax[j].plot(bins[0:-1], hist, drawstyle='steps-post')
@@ -341,24 +316,26 @@ def plot_ensemble_histograms(ds, draws, npar, sensor, nens):
             ax[j].tick_params(labelsize=10)
             ax[j].set_xlim([-6,6])
             ax[j].set_ylabel('Prob. density', fontsize=10)
-            title_str = sensor[i] + ": a(" + str(j+1) + ")=" + "{0:.3e}".format(Y_mean)
+            title_str = sensor[i] + ": a(" + str(j) + ")=" + "{0:.3e}".format(draws_ave[k])
             ax[j].set_title(title_str, fontsize=10)
             
         plt.xlabel(r'z-score', fontsize=10)
-        file_str = "ensemble_histograms_" + sensor[i] + ".png"
+        file_str = "population_histograms_" + sensor[i] + ".png"
         plt.savefig(file_str)    
 
     plt.close('all')
 
-def plot_ensemble_coefficients(ds, draws, npar, sensor, npop):
+def plot_population_coefficients(ds, draws, npar, sensor, npop):
     '''
-    Plot ensemble coefficient z-scores
+    Plot population coefficient z-scores
     '''
 
     parameter = ds['parameter'] 
     parameter_covariance_matrix = ds['parameter_covariance_matrix'] 
 
-    Y = draws
+    draws_ave = draws.mean(axis=0)
+    draws_std = draws.std(axis=0)
+    Z = (draws - draws_ave) / draws_std
 
     #
     # Ensemble coefficients plotted as z-scores relative to best value
@@ -370,34 +347,30 @@ def plot_ensemble_coefficients(ds, draws, npar, sensor, npop):
         for j in range(0,npar):
 
             k = (npar*i)+j
-            Y_mean = Y[:,k].mean()
-            Y_std = Y[:,k].std()
-            Z = (Y[:,k] - Y_mean) / Y_std
-            ax[j].plot(np.arange(0,npop), Z)            
+            ax[j].plot(np.arange(0,npop), Z[:,k])            
             ax[j].plot((0,npop), (0,0), 'r-')   
             ax[j].tick_params(labelsize=10)
             ax[j].set_ylabel(r'z-score', fontsize=10)
             ax[j].set_ylim([-6,6])
-            title_str = sensor[i] + ": a(" + str(j+1) + ")=" + "{0:.3e}".format(Y_mean)
+            title_str = sensor[i] + ": a(" + str(j) + ")=" + "{0:.3e}".format(draws_ave[k])
             ax[j].set_title(title_str, fontsize=10)
 
-        plt.xlabel('Ensemble member', fontsize=10)
-        file_str = "ensemble_coefficients_" + sensor[i] + ".png"
+        plt.xlabel('Population member', fontsize=10)
+        file_str = "population_coefficients_" + sensor[i] + ".png"
         plt.savefig(file_str)    
 
     plt.close('all')
 
-def plot_ensemble_cdf(ds, draws, npar, sensor, nens, npop):
+def plot_population_cdf(ds, draws, npar, sensor, nens, npop):
     '''
-    Extract decile members
+    Extract decile values of population
     '''
 
     parameter = ds['parameter'] 
-    Y = draws
 
-    Y_mean = Y.mean(axis=0)
-    Y_sd = Y.std(axis=0)
-    Z = (Y - Y_mean) / Y_sd
+    draws_ave = draws.mean(axis=0)
+    draws_std = draws.std(axis=0)
+    Z = (draws - draws_ave) / draws_std
 
     F = np.array(range(0,npop))/float(npop)    
     Z_est = np.empty(shape=(nens,len(parameter)))
@@ -427,7 +400,7 @@ def plot_ensemble_cdf(ds, draws, npar, sensor, nens, npop):
             title_str = 'Harmonisation coefficient: a(' + str(i) + ')' 
             plt.title(title_str)
             plt.legend(fontsize=10, ncol=1)
-            file_str = "ensemble_cdf_coefficient_" + str(i) + ".png"
+            file_str = "population_cdf_coefficient_" + str(i) + ".png"
             plt.savefig(file_str)    
 
     plt.close('all')
@@ -543,7 +516,7 @@ def plot_ensemble_deltas(ds, ensemble, npar, sensor, nens):
         title_str = 'Harmonisation coefficient: a(' + str(i) + ')'
         ax.set_title(title_str, fontsize=12)
         ax.legend(fontsize=8)
-        file_str = "equiprobable_delta_uncertainty_coefficient_" + str(i) + ".png"
+        file_str = "ensemble_delta_uncertainty_coefficient_" + str(i) + ".png"
         plt.savefig(file_str)    
 
 
@@ -590,12 +563,12 @@ def plot_ensemble_deltas(ds, ensemble, npar, sensor, nens):
             title_str = 'Harmonisation coefficient: a(' + str(i) + ')'
             ax.set_title(title_str, fontsize=12)
             plt.tight_layout()
-            file_str = "equiprobable_correlation_coefficient_" + str(i) + ".png"
+            file_str = "ensemble_correlation_coefficient_" + str(i) + ".png"
             plt.savefig(file_str)    
 
     plt.close('all')
 
-def calc_subsample_ensemble(ds, ensemble, npar, sensor, nens):
+def calc_equiprobable(ds, draws, ensemble, npar, sensor, nens, npop):
     '''
     Sample optimal 10 from the nens-member ensemble
     '''
@@ -609,11 +582,11 @@ def calc_subsample_ensemble(ds, ensemble, npar, sensor, nens):
     
     Z = np.array(ensemble)
 
-    E_mean = E.mean(axis=0)
-    E_sd = E.std(axis=0)
-    Y_mean = Y.mean(axis=0)
-    Y_sd = Y.std(axis=0)
-    Z = (Y - Y_mean) / Y_sd
+    E_ave = E.mean(axis=0)
+    E_std = E.std(axis=0)
+    Y_ave = Y.mean(axis=0)
+    Y_std = Y.std(axis=0)
+    Z = (Y - Y_ave) / Y_std
 
     Z_cdf = np.empty(shape=(nens,len(parameter)))
     Z_10 = np.empty(shape=(10,len(parameter)))
@@ -631,19 +604,20 @@ def calc_subsample_ensemble(ds, ensemble, npar, sensor, nens):
     
 if __name__ == "__main__":
 
-#    parser = OptionParser("usage: %prog file_in npar")
+#    parser = OptionParser("usage: %prog file_in npar npop nens")
 #    (options, args) = parser.parse_args()
 #    file_in = args[0]
 #    npar = args[1]
+#    npop = args[2]
+#    nens = args[3]
 
-    file_in = "FIDUCEO_Harmonisation_Data_37.nc"
+#    file_in = "FIDUCEO_Harmonisation_Data_37.nc"
 #    file_in = "FIDUCEO_Harmonisation_Data_11.nc"
-#    file_in = "FIDUCEO_Harmonisation_Data_12.nc"
-    npar = 3
-#    npar = 4
+    file_in = "FIDUCEO_Harmonisation_Data_12.nc"
+#    npar = 3
+    npar = 4
     npop = 1000000
     nens = 10
-
     sensor = ['METOPA','NOAA19','NOAA18','NOAA17','NOAA16','NOAA15','NOAA14','NOAA12','NOAA11']
 
     ds = load_data(file_in)
@@ -653,22 +627,21 @@ if __name__ == "__main__":
     # Fast load of draws array
     #
 
-    draws = np_load('draws_37_1000000.npy')
+#    draws = np_load('draws_37_1000000.npy')
 #    draws = np_load('draws_11_1000000.npy')
-#    draws = np_load('draws_12_1000000.npy')
+    draws = np_load('draws_12_1000000.npy')
 
-    eigenval, eigenvec = calc_eigen(ds)
     ensemble, ensemble_idx = calc_ensemble(ds, draws, npar, sensor, nens, npop)
-    ensemble_10 = calc_subsample_ensemble(ds, ensemble, npar, sensor, nens)
+    equiprobable = calc_equiprobable(ds, draws, ensemble, npar, sensor, nens, npop)
 
-    plot_parameters(ds, npar, sensor)
-    plot_covariance(ds)
-    plot_eigenval(eigenval)
-    plot_eigenvec(eigenvec)
-    plot_ensemble_coefficients(ds, draws, npar, sensor, npop)
-    plot_ensemble_histograms(ds, draws, npar, sensor, nens)
     plot_ensemble_deltas(ds, ensemble, npar, sensor, nens)
-    plot_ensemble_cdf(ds, draws, npar, sensor, nens, npop)
+
+    plot_bestcase_parameters(ds, npar, sensor)
+    plot_bestcase_covariance(ds)
+    plot_population_coefficients(ds, draws, npar, sensor, npop)
+    plot_population_histograms(ds, draws, npar, sensor, nens)
+    plot_population_cdf(ds, draws, npar, sensor, nens, npop)
+
 
 
 
