@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.14
-# 14 April, 2019
+# Version 0.15
+# 16 April, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -598,6 +598,18 @@ def calc_equiprobable(ds, draws, ensemble, npar, sensor, nens, npop):
         
 #    return ensemble_10
 
+def export_ensemble(ensemble):
+    '''
+    Export ensemble in format needed for FCDR delta creation algorithm in FCDR generation code:
+
+    1) netCDF4 format produced for Harmonisation parameter deltas (fill_val = 0) at: /gws/nopw/j04/fiduceo/Data/FCDR/AVHRR/test/MC_Harmonisation.nc. 
+    2) FCDR generation code uses an environment variable (FIDUCEO_MC_HARM) to find MC_Harmonisation.nc
+    3) MC_harmonisation.nc contains  metadata which enables a match to the original Harmonisation file in: /gws/nopw/j04/fiduceo/Data/FCDR/AVHRR/test/
+    4) Each input harmonisation file has a UUID which is then stored as HARM_UUID3 or HARM_UUID4 or HARM_UUID5 in the ensemble delta file. The UUIDs all have to match for the file to be read in - enforcing a match to ensure that the same harmonisation files and the ensemble delta file are compatible
+    5) Relevant harmonisation parameter files contain parameter names (e.g. delta_param3) are in the same directory: /gws/nopw/j04/fiduceo/Data/FCDR/AVHRR/test/
+    6) Ensemble generation code will read in ensemble output file provided here
+    '''    
+
 # =======================================    
 # MAIN BLOCK
 # =======================================    
@@ -642,7 +654,7 @@ if __name__ == "__main__":
     plot_population_histograms(ds, draws, npar, sensor, nens)
     plot_population_cdf(ds, draws, npar, sensor, nens, npop)
 
-
+#    export_ensemble(ensemble)
 
 
 
