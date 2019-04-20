@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.15
-# 16 April, 2019
+# Version 0.17
+# 20 April, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -144,37 +144,47 @@ def calc_ensemble(ds, draws, npar, sensor, nens, npop):
     #
 
     Z_norm = np.empty(shape=(npop))
-    for i in range(0,npop):
+    for i in range(0,npop): 
+        
+        Z_norm[i] = np.linalg.norm(Z[i,:])
 
-        Z_norm[i] = LA.norm(Z[:,i], 'fro')
+    ensemble = np.empty(shape=(nens,len(parameter)))
+    ensemble_idx = np.empty(shape=(nens))
+    deciles = np.linspace(0, nens, nens+1, endpoint=True).astype('int') * 10
+    for j in range(0,nens):
 
+        y = np.percentile(Z_norm, deciles[j+1], interpolation='nearest') 
+        ensemble[j,:] = draws[j,:]
+        ensemble_idx[j] = abs(Z_norm - y).argmin()
+        
     #
     # Extract deciles from CDF
     #
 
-    ensemble = np.empty(shape=(nens,len(parameter)))
-    ensemble_idx = np.empty(shape=(nens,len(parameter)))
+#    ensemble = np.empty(shape=(nens,len(parameter)))
+#    ensemble_idx = np.empty(shape=(nens,len(parameter)))
 
-    for i in range(0,len(parameter)):
+#    for i in range(0,len(parameter)):
 
         # 
         # CDF of Z-scores of draw distribution
         #
 
-        Z_cdf = np.sort(Z[:,i])
-        i_cdf = np.argsort(Z[:,i])
+#        Z_cdf = np.sort(Z[:,i])
+#        i_cdf = np.argsort(Z[:,i])
   
         #
         # Construct sorted ensemble from quantile values of Z_cdf
         # 
 
-        for j in range(nens):
+ #       for j in range(nens):
 
-            idx = int(j * (npop/nens))
-            ensemble[j,i] = (Z_cdf[i_cdf[idx]] * draws_std[i]) + draws_ave[i]
-            ensemble_idx[j,i] = int(i_cdf[idx])            
+ #           idx = int(j * (npop/nens))
+ #           ensemble[j,i] = (Z_cdf[i_cdf[idx]] * draws_std[i]) + draws_ave[i]
+ #           ensemble_idx[j,i] = int(i_cdf[idx])            
 
-    ensemble_idx = ensemble_idx.astype(int)
+#    ensemble_idx = ensemble_idx.astype(int)
+
     ensemble_ave = ensemble.mean(axis=0)
     ensemble_std = ensemble.std(axis=0)
 
