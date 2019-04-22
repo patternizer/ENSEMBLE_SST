@@ -101,12 +101,12 @@ def calc_draws(ds, npop):
     # These parameters are analogous to the mean (average or “center”) and
     # variance (standard deviation, or “width,” squared) of the 1D-normal distribution.
 
-    Xmean = parameter 
-    Xcov = parameter_covariance_matrix
+    X_ave = parameter 
+    X_cov = parameter_covariance_matrix
     size = npop
-    draws = np.random.multivariate_normal(Xmean, Xcov, size)
+    draws = np.random.multivariate_normal(X_ave, X_cov, size)
 
-    # np.random.multivariate_normal(Xmean, Xcov[, size, check_valid, tol])
+    # np.random.multivariate_normal(X_ave, X_cov[, size, check_valid, tol])
     # Xmean : 1-D array_like, of length N : mean of the N-dimensional distribution
     # Xcov : 2-D array_like, of shape (N, N) : covariance matrix of the distribution (symmetric and positive-semidefinite for proper sampling)
     # size : int or tuple of ints : optional
@@ -154,23 +154,36 @@ def calc_ensemble(ds, draws, npar, sensor, nens, npop):
     for i in range(0,len(parameter)):
 
         # 
-        # CDF of Z-scores of draw distribution
+        # CDF (+ sort indices) of draw distribution (for each parameter)
         #
 
         Z_cdf = np.sort(Z[:,i])
         i_cdf = np.argsort(Z[:,i])
+
+#        --------------------------------
+#        NUMPY: sort --> unsort example
+#        --------------------------------
+#        arr = np.array([5, 3, 7, 2, 46, 3]) 
+#        arr_sorted = np.sort(arr)
+#        arr_idx = np.argsort(arr)
+#        arr_remade = np.empty(arr.shape)
+#        arr_remade[arr_idx] = arr_sorted
+#        --------------------------------
   
         #
-        # Construct sorted ensemble from quantile values of Z_cdf
+        # Decile values of Z_cdf (for each parameter)
         # 
+
+        idx_step = int(npop / (nens - 1))
+#        deciles = np.linspace(0, nens, nens+1, endpoint=True).astype('int') * 10
 
         for j in range(nens):
 
-            idx_step = int(npop / (nens - 1))
             if j == 0:
                 idx = idx_step * j
             else:
                 idx = idx_step * j - 1
+
             decile[j,i] = Z_cdf[idx]
             decile_idx[j,i] = i_cdf[idx]            
 
@@ -183,33 +196,27 @@ def calc_ensemble(ds, draws, npar, sensor, nens, npop):
     print("parameter deciles(max): ", decile_max)
 
     #
-    # Calcaulte norm of draw deltas from parameter deciles from draw CDF
+    # Calcaulte norm of draw deltas with respect to deciles to select ensemble members
     #
 
-
-
-
-
-
-    Z_norm = np.empty(shape=(npop))
+    Z_norm = np.empty(shape=(nens, npop))
     for i in range(0,npop): 
-        
-        Z_norm[i] = np.linalg.norm(Z[i,:])
 
+        for j in range(0,nens):
+            Z_norm[j,i] = np.linalg.norm( Z[i,:] - decile[j,:] )
+    
     ensemble = np.empty(shape=(nens,len(parameter)))
     ensemble_idx = np.empty(shape=(nens))
-    deciles = np.linspace(0, nens, nens+1, endpoint=True).astype('int') * 10
 
     for j in range(0,nens):
 
-        y = np.percentile(Z_norm, deciles[j+1], interpolation='nearest') 
-        i = abs(Z_norm - y).argmin()        
+#        y = np.percentile(Z_norm, deciles[j+1], interpolation='nearest') 
+#        i = abs(Z_norm - y).argmin()        
+        
+        i = np.argmin(Z_norm[j,:])
         ensemble[j,:] = draws[i,:]
         ensemble_idx[j] = i
         
-
-
-
     ensemble_ave = ensemble.mean(axis=0)
     ensemble_std = ensemble.std(axis=0)
     ensemble_min = ensemble.min(axis=0)
