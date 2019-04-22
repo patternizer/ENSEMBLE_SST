@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.17
-# 20 April, 2019
+# Version 0.18
+# 22 April, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -139,9 +139,57 @@ def calc_ensemble(ds, draws, npar, sensor, nens, npop):
     Z_min = Z.min(axis=0)
     Z_max = Z.max(axis=0)
 
+    print("best_mean - mean(draws):", (parameter - draws_ave) )
+    print("best_uncertainty - std(draws):", (parameter_uncertainty - draws_std) )
+    print("Z(draws)_min:", Z_min)
+    print("Z(draws)_max:", Z_max)
+
     #
-    # Calcaulte norm of each draw
+    # Extract deciles for each parameter from CDF of draws
     #
+
+    decile = np.empty(shape=(nens,len(parameter)))
+    decile_idx = np.empty(shape=(nens,len(parameter)))
+
+    for i in range(0,len(parameter)):
+
+        # 
+        # CDF of Z-scores of draw distribution
+        #
+
+        Z_cdf = np.sort(Z[:,i])
+        i_cdf = np.argsort(Z[:,i])
+  
+        #
+        # Construct sorted ensemble from quantile values of Z_cdf
+        # 
+
+        for j in range(nens):
+
+            idx_step = int(npop / (nens - 1))
+            if j == 0:
+                idx = idx_step * j
+            else:
+                idx = idx_step * j - 1
+            decile[j,i] = Z_cdf[idx]
+            decile_idx[j,i] = i_cdf[idx]            
+
+    decile_idx = decile_idx.astype(int)
+    decile_min = decile.min(axis=0)
+    decile_max = decile.max(axis=0)
+
+    print("parameter deciles: ", decile)
+    print("parameter deciles(min): ", decile_min)
+    print("parameter deciles(max): ", decile_max)
+
+    #
+    # Calcaulte norm of draw deltas from parameter deciles from draw CDF
+    #
+
+
+
+
+
 
     Z_norm = np.empty(shape=(npop))
     for i in range(0,npop): 
@@ -151,49 +199,26 @@ def calc_ensemble(ds, draws, npar, sensor, nens, npop):
     ensemble = np.empty(shape=(nens,len(parameter)))
     ensemble_idx = np.empty(shape=(nens))
     deciles = np.linspace(0, nens, nens+1, endpoint=True).astype('int') * 10
+
     for j in range(0,nens):
 
         y = np.percentile(Z_norm, deciles[j+1], interpolation='nearest') 
-        ensemble[j,:] = draws[j,:]
-        ensemble_idx[j] = abs(Z_norm - y).argmin()
+        i = abs(Z_norm - y).argmin()        
+        ensemble[j,:] = draws[i,:]
+        ensemble_idx[j] = i
         
-    #
-    # Extract deciles from CDF
-    #
 
-#    ensemble = np.empty(shape=(nens,len(parameter)))
-#    ensemble_idx = np.empty(shape=(nens,len(parameter)))
 
-#    for i in range(0,len(parameter)):
-
-        # 
-        # CDF of Z-scores of draw distribution
-        #
-
-#        Z_cdf = np.sort(Z[:,i])
-#        i_cdf = np.argsort(Z[:,i])
-  
-        #
-        # Construct sorted ensemble from quantile values of Z_cdf
-        # 
-
- #       for j in range(nens):
-
- #           idx = int(j * (npop/nens))
- #           ensemble[j,i] = (Z_cdf[i_cdf[idx]] * draws_std[i]) + draws_ave[i]
- #           ensemble_idx[j,i] = int(i_cdf[idx])            
-
-#    ensemble_idx = ensemble_idx.astype(int)
 
     ensemble_ave = ensemble.mean(axis=0)
     ensemble_std = ensemble.std(axis=0)
+    ensemble_min = ensemble.min(axis=0)
+    ensemble_max = ensemble.max(axis=0)
 
-    print("best_mean - mean(draws):", (parameter - draws_ave) )
-    print("best_uncertainty - std(draws):", (parameter_uncertainty - draws_std) )
     print("best_mean - mean(ensemble):", (parameter - ensemble_ave) )
     print("best_uncertainty - std(ensemble):", (parameter_uncertainty - ensemble_std) )
-    print("Z_min:", Z_min)
-    print("Z_max:", Z_max)
+    print("Z(ensemble)_min:", ensemble_min)
+    print("Z(ensemble)_max:", ensemble_max)
 
     return ensemble, ensemble_idx
 
@@ -236,6 +261,7 @@ def plot_bestcase_parameters(ds, npar, sensor):
         U = np.array([U0,U1,U2])    
         dY = pd.DataFrame({'a(0)': Y0, 'a(1)': Y1, 'a(2)': Y2}, index=list(sensor))                  
         dU = pd.DataFrame({'a(0)': U0, 'a(1)': U1, 'a(2)': U2}, index=list(sensor)) 
+
         ax = dY.plot(kind="bar", yerr=dU, colormap='viridis', subplots=True, layout=(3, 1), sharey=False, sharex=True, rot=90, fontsize=12, legend=False)
 
     elif npar == 4:
@@ -271,6 +297,7 @@ def plot_bestcase_parameters(ds, npar, sensor):
         U = np.array([U0,U1,U2,U3])    
         dY = pd.DataFrame({'a(0)': Y0, 'a(1)': Y1, 'a(2)': Y2, 'a(3)': Y3}, index=list(sensor))                  
         dU = pd.DataFrame({'a(0)': U0, 'a(1)': U1, 'a(2)': U2, 'a(3)': U3}, index=list(sensor))                  
+
         ax = dY.plot(kind="bar", yerr=dU, colormap='viridis', subplots=True, layout=(4, 1), sharey=False, sharex=True, rot=90, fontsize=12, legend=False)
     
     plt.tight_layout()
@@ -289,7 +316,7 @@ def plot_bestcase_covariance(ds):
 
     fig = plt.figure()
     sns.heatmap(Y, center=0, linewidths=.5, cmap="viridis", cbar=True, vmin=-1.0e-9, vmax=1.0e-6, cbar_kws={"extend":'both', "format":ticker.FuncFormatter(fmt)})
-    title_str = "Covariance matrix: max=" + "{0:.3e}".format(Y.max())
+    title_str = "Covariance matrix (relative): max=" + "{0:.3e}".format(Y.max())
     plt.title(title_str)
     plt.savefig('bestcase_covariance_matrix.png')    
     plt.close()
@@ -639,7 +666,7 @@ if __name__ == "__main__":
 #    npar = 3
     npar = 4
     npop = 1000000
-    nens = 10
+    nens = 11
     sensor = ['METOPA','NOAA19','NOAA18','NOAA17','NOAA16','NOAA15','NOAA14','NOAA12','NOAA11']
 
     ds = load_data(file_in)
