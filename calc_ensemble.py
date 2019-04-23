@@ -5,7 +5,7 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.19
+# Version 0.20
 # 23 April, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
@@ -588,7 +588,7 @@ def plot_ensemble_deltas(ds, ensemble, npar, sensor, nens):
                 ys = (dZ['a(2)'][j] - dY['a(2)'][j]) / dU['a(2)'][j] 
             elif i == 3:
                 ys = (dZ['a(3)'][j] - dY['a(3)'][j]) / dU['a(3)'][j] 
-            plt.boxplot(xs, ys)
+            ax.boxplot(j, ys)
 
         ax.set_xlabel('Ensemble member', fontsize=12)
         ax.set_ylabel('Delta / Uncertainty', fontsize=12)
