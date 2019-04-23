@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.18
-# 22 April, 2019
+# Version 0.19
+# 23 April, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -539,6 +539,10 @@ def plot_ensemble_deltas(ds, ensemble, npar, sensor, nens):
         dU = pd.DataFrame({'a(0)': U0, 'a(1)': U1, 'a(2)': U2, 'a(3)': U3}, index=list(sensor)) 
         dZ = pd.DataFrame({'a(0)': Z0, 'a(1)': Z1, 'a(2)': Z2, 'a(3)': Z3}, index=list(sensor))              
 
+    #
+    # Lineplot per sensor of ensemble for each parameter
+    #
+
     xs = np.arange(nens)
     for i in range(0,npar):
 
@@ -557,12 +561,44 @@ def plot_ensemble_deltas(ds, ensemble, npar, sensor, nens):
 
         ax.set_xlabel('Ensemble member', fontsize=12)
         ax.set_ylabel('Delta / Uncertainty', fontsize=12)
+        ax.set_ylim([-6,6])
         title_str = 'Harmonisation coefficient: a(' + str(i) + ')'
         ax.set_title(title_str, fontsize=12)
         ax.legend(fontsize=8)
         file_str = "ensemble_delta_uncertainty_coefficient_" + str(i) + ".png"
         plt.savefig(file_str)    
 
+    plt.close('all')
+
+    #
+    # Boxplot per sensor of ensemble for each parameter
+    #
+
+    xs = np.arange(nens)
+    for i in range(0,npar):
+
+        fig, ax = plt.subplots()
+        for j in range(0,len(sensor)):
+                  
+            if i == 0:
+                ys = (dZ['a(0)'][j] - dY['a(0)'][j]) / dU['a(0)'][j]
+            elif i == 1:
+                ys = (dZ['a(1)'][j] - dY['a(1)'][j]) / dU['a(1)'][j] 
+            elif i == 2:
+                ys = (dZ['a(2)'][j] - dY['a(2)'][j]) / dU['a(2)'][j] 
+            elif i == 3:
+                ys = (dZ['a(3)'][j] - dY['a(3)'][j]) / dU['a(3)'][j] 
+            plt.boxplot(xs, ys)
+
+        ax.set_xlabel('Ensemble member', fontsize=12)
+        ax.set_ylabel('Delta / Uncertainty', fontsize=12)
+        ax.set_ylim([-6,6])
+        title_str = 'Harmonisation coefficient: a(' + str(i) + ')'
+        ax.set_title(title_str, fontsize=12)
+        file_str = "ensemble_boxplot_delta_uncertainty_coefficient_" + str(i) + ".png"
+        plt.savefig(file_str)    
+
+    plt.close('all')
 
     #
     # Correlation between ensemble member coefficients
@@ -612,36 +648,6 @@ def plot_ensemble_deltas(ds, ensemble, npar, sensor, nens):
 
     plt.close('all')
 
-def calc_equiprobable(ds, draws, ensemble, npar, sensor, nens, npop):
-    '''
-    Sample optimal 10 from the nens-member ensemble
-    '''
-
-    parameter = ds['parameter'] 
-    parameter_uncertainty = ds['parameter_uncertainty'] 
-
-    Y = np.array(parameter)
-    U = np.array(parameter_uncertainty)
-    E = np.array(ensemble)
-    
-    Z = np.array(ensemble)
-
-    E_ave = E.mean(axis=0)
-    E_std = E.std(axis=0)
-    Y_ave = Y.mean(axis=0)
-    Y_std = Y.std(axis=0)
-    Z = (Y - Y_ave) / Y_std
-
-    Z_cdf = np.empty(shape=(nens,len(parameter)))
-    Z_10 = np.empty(shape=(10,len(parameter)))
-#    for i in range(0,len(parameter)):
-#        Z_cdf[:,i] = np.sort(Z[:,i])
-#    for j in range(0,10):        
-#        n = np.linspace(0, nens, 11, endpoint=True)    
-#        Z_10[j,n]
-        
-#    return ensemble_10
-
 def export_ensemble(ensemble):
     '''
     Export ensemble in format needed for FCDR delta creation algorithm in FCDR generation code:
@@ -688,8 +694,6 @@ if __name__ == "__main__":
     draws = np_load('draws_12_1000000.npy')
 
     ensemble, ensemble_idx = calc_ensemble(ds, draws, npar, sensor, nens, npop)
-    equiprobable = calc_equiprobable(ds, draws, ensemble, npar, sensor, nens, npop)
-
     plot_ensemble_deltas(ds, ensemble, npar, sensor, nens)
 
     plot_bestcase_parameters(ds, npar, sensor)
