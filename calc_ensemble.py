@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.20
-# 23 April, 2019
+# Version 0.21
+# 24 April, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -579,6 +579,7 @@ def plot_ensemble_deltas(ds, ensemble, npar, sensor, nens):
 
         fig = plt.figure()
         ax = plt.subplot(111)
+        ys_all = []
         for j in range(0,len(sensor)):
                   
             if i == 0:
@@ -589,12 +590,12 @@ def plot_ensemble_deltas(ds, ensemble, npar, sensor, nens):
                 ys = (dZ['a(2)'][j] - dY['a(2)'][j]) / dU['a(2)'][j] 
             elif i == 3:
                 ys = (dZ['a(3)'][j] - dY['a(3)'][j]) / dU['a(3)'][j] 
-            ax.boxplot(ys, positions = [j])
-        
-        ax.set_xlabel('Ensemble member', fontsize=12)
-        ax.set_ylabel('Delta / Uncertainty', fontsize=12)
+            ys_all.append(ys)
+
+        ax.boxplot(ys_all, notch=False, sym="o", labels=list(sensor))
+        ax.set_xticklabels(ax.get_xticklabels(),rotation=90)
+        ax.set_ylabel('Delta / Uncertainty (median statistics)', fontsize=12)
         ax.set_ylim([-6,6])
-        ax.set_xlim(-0.5, len(sensor) + 0.5)
         title_str = 'Harmonisation coefficient: a(' + str(i) + ')'
         ax.set_title(title_str, fontsize=12)
         file_str = "ensemble_boxplot_delta_uncertainty_coefficient_" + str(i) + ".png"
