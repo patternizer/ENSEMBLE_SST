@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.21
-# 24 April, 2019
+# Version 0.22
+# 26 April, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -599,6 +599,8 @@ def plot_ensemble_deltas(ds, ensemble, npar, sensor, nens):
         title_str = 'Harmonisation coefficient: a(' + str(i) + ')'
         ax.set_title(title_str, fontsize=12)
         file_str = "ensemble_boxplot_delta_uncertainty_coefficient_" + str(i) + ".png"
+#        plt.gcf().subplots_adjust(bottom=0.15)
+        plt.tight_layout()
         plt.savefig(file_str)    
 
     plt.close('all')
@@ -676,11 +678,11 @@ if __name__ == "__main__":
 #    npop = args[2]
 #    nens = args[3]
 
-#    file_in = "FIDUCEO_Harmonisation_Data_37.nc"
+    file_in = "FIDUCEO_Harmonisation_Data_37.nc"
 #    file_in = "FIDUCEO_Harmonisation_Data_11.nc"
-    file_in = "FIDUCEO_Harmonisation_Data_12.nc"
-#    npar = 3
-    npar = 4
+#    file_in = "FIDUCEO_Harmonisation_Data_12.nc"
+    npar = 3
+#    npar = 4
     npop = 1000000
     nens = 11
     sensor = ['METOPA','NOAA19','NOAA18','NOAA17','NOAA16','NOAA15','NOAA14','NOAA12','NOAA11']
@@ -692,9 +694,9 @@ if __name__ == "__main__":
     # Fast load of draws array
     #
 
-#    draws = np_load('draws_37_1000000.npy')
+    draws = np_load('draws_37_1000000.npy')
 #    draws = np_load('draws_11_1000000.npy')
-    draws = np_load('draws_12_1000000.npy')
+#    draws = np_load('draws_12_1000000.npy')
 
     ensemble, ensemble_idx = calc_ensemble(ds, draws, npar, sensor, nens, npop)
     plot_ensemble_deltas(ds, ensemble, npar, sensor, nens)
