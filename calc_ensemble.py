@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.22
-# 26 April, 2019
+# Version 0.23
+# 29 April, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -653,10 +653,14 @@ def plot_ensemble_deltas(ds, ensemble, npar, sensor, nens):
 
     plt.close('all')
 
+def check_ensemble(ensemble):
+    '''
+    Calculate covariance matrix of ensemble and compare against covariance matrix resulting from Harmonisation
+    '''
+
 def export_ensemble(ensemble):
     '''
     Export ensemble in format needed for FCDR delta creation algorithm in FCDR generation code:
-
     1) netCDF4 format produced for Harmonisation parameter deltas (fill_val = 0) at: /gws/nopw/j04/fiduceo/Data/FCDR/AVHRR/test/MC_Harmonisation.nc. 
     2) FCDR generation code uses an environment variable (FIDUCEO_MC_HARM) to find MC_Harmonisation.nc
     3) MC_harmonisation.nc contains  metadata which enables a match to the original Harmonisation file in: /gws/nopw/j04/fiduceo/Data/FCDR/AVHRR/test/
@@ -699,6 +703,8 @@ if __name__ == "__main__":
 #    draws = np_load('draws_12_1000000.npy')
 
     ensemble, ensemble_idx = calc_ensemble(ds, draws, npar, sensor, nens, npop)
+    check_ensemble(ensemble)
+
     plot_ensemble_deltas(ds, ensemble, npar, sensor, nens)
 
     plot_bestcase_parameters(ds, npar, sensor)
