@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.23
-# 29 April, 2019
+# Version 0.5
+# 2 May, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -58,6 +58,15 @@ def load_data(file_in):
     ds = xarray.open_dataset(file_in)
 
     return ds
+
+def calc_eigen(X):
+    '''
+    Calculate eigenvalues and eigenvectors from the covariance (or correlation) matrix X
+    '''
+
+    eigenval, eigenvec = np.linalg.eig(X)
+
+    return eigenval, eigenvec
 
 def calc_draws(ds, npop):
     '''
@@ -653,10 +662,111 @@ def plot_ensemble_deltas(ds, ensemble, npar, sensor, nens):
 
     plt.close('all')
 
-def check_ensemble(ensemble):
+def plot_eigenval(eigenval, title_str, file_str):
     '''
-    Calculate covariance matrix of ensemble and compare against covariance matrix resulting from Harmonisation
+    Plot eigenvalues as a scree plot
     '''
+
+    Y = eigenval / max(eigenval)
+
+    fig = plt.figure()
+    plt.fill_between( np.arange(0,len(Y)), Y, step="post", alpha=0.4)
+    plt.plot( np.arange(0,len(Y)), Y, drawstyle='steps-post')
+    plt.tick_params(labelsize=12)
+    plt.ylabel("Relative value", fontsize=12)
+#    title_str = 'Scree plot: eigenvalue max=' + "{0:.5f}".format(eigenval.max())
+#    file_str = 'bestcase_eigenvalues.png'
+    plt.title(title_str)
+    plt.savefig(file_str)
+    plt.close()
+
+def plot_eigenvec(eigenvec, title_str, file_str):
+    '''
+    Plot eigenvector matrix as a heatmap
+    '''
+
+    X = eigenvec
+
+    fig = plt.figure()
+    sns.heatmap(X, center=0, linewidths=.5, cmap="viridis", cbar=True)
+#    title_str = 'Eigenvector matrix'
+#    file_str = 'bestcase_eigenvectors.png'
+    plt.title(title_str)
+    plt.savefig(file_str)
+    plt.close()
+
+def plot_ensemble_check(ds, ensemble):
+    '''
+    Calculate correlation matrix of ensemble.
+    Calculate covariance matrix of ensemble.
+    Calculate diff from harmonisation.
+    Eigenvalue scree plot of covariance and correlation matrices.
+    '''
+    cov_par = ds.parameter_covariance_matrix
+    cov_ensemble = np.cov(ensemble, rowvar=False)
+    cov_diff = cov_par - cov_ensemble
+
+    corr_par = ds.parameter_correlation_matrix
+    corr_ensemble = np.corrcoef(ensemble, rowvar=False)
+    corr_diff = corr_par - corr_ensemble
+
+    cov_par_eigenval, cov_par_eigenvec = calc_eigen(cov_par)
+    cov_ensemble_eigenval, cov_ensemble_eigenvec = calc_eigen(cov_ensemble)
+
+    corr_par_eigenval, corr_par_eigenvec = calc_eigen(corr_par)
+    corr_ensemble_eigenval, corr_ensemble_eigenvec = calc_eigen(corr_ensemble)
+
+    #
+    # Plot Eigenvalues
+    #
+
+    title_str = 'Scree plot (correlation matrix: harmonisation): eigenvalue max=' + "{0:.5f}".format(corr_par_eigenval.max())
+    file_str = 'harmonisation_eigenvalues_correlation_matrix.png'
+    plot_eigenval(corr_par_eigenval, title_str, file_str) 
+
+    title_str = 'Scree plot (correlation matrix: ensemble): eigenvalue max=' + "{0:.5f}".format(corr_ensemble_eigenval.max())
+    file_str = 'ensemble_eigenvalues_correlation_matrix.png'
+    plot_eigenval(corr_ensemble_eigenval, title_str, file_str) 
+
+    title_str = 'Scree plot (covariance matrix: harmonisation): eigenvalue max=' + "{0:.5f}".format(cov_par_eigenval.max())
+    file_str = 'harmonisation_eigenvalues_covariance_matrix.png'
+    plot_eigenval(cov_par_eigenval, title_str, file_str) 
+
+    title_str = 'Scree plot (covariance matrix: ensemble): eigenvalue max=' + "{0:.5f}".format(cov_ensemble_eigenval.max())
+    file_str = 'ensemble_eigenvalues_covariance_matrix.png'
+    plot_eigenval(cov_ensemble_eigenval, title_str, file_str) 
+
+    #
+    # Plot Correlation Matrices
+    #
+
+    title_str = 'Correlation matrix (harmonisation)'
+    file_str = 'harmonisation_correlation_matrix.png'
+    plot_eigenvec(corr_par, title_str, file_str) 
+
+    title_str = "Correlation matrix (ensemble)"
+    file_str = 'ensemble_correlation_matrix.png'    
+    plot_eigenvec(corr_ensemble, title_str, file_str) 
+
+    title_str = "Correlation matrix (harmonisation - ensemble)"
+    file_str = 'diff_correlation_matrix.png'
+    plot_eigenvec(corr_diff, title_str, file_str) 
+
+    #
+    # Plot Covariance Matrices
+    #
+
+    title_str = 'Covariance matrix (harmonisation)'
+    file_str = 'harmonisation_covariance_matrix.png'
+    plot_eigenvec(cov_par, title_str, file_str) 
+
+    title_str = "Covariance matrix (ensemble)"
+    file_str = 'ensemble_covariance_matrix.png'    
+    plot_eigenvec(cov_ensemble, title_str, file_str) 
+
+    title_str = "Covariance matrix (harmonisation - ensemble)"
+    file_str = 'diff_covariance_matrix.png'
+    plot_eigenvec(cov_diff, title_str, file_str)     
 
 def export_ensemble(ensemble):
     '''
@@ -703,8 +813,8 @@ if __name__ == "__main__":
 #    draws = np_load('draws_12_1000000.npy')
 
     ensemble, ensemble_idx = calc_ensemble(ds, draws, npar, sensor, nens, npop)
-    check_ensemble(ensemble)
 
+    plot_ensemble_check(ds, ensemble)
     plot_ensemble_deltas(ds, ensemble, npar, sensor, nens)
 
     plot_bestcase_parameters(ds, npar, sensor)
