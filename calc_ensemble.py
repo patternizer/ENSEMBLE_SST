@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.5
-# 2 May, 2019
+# Version 0.6
+# 4 May, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -33,6 +33,12 @@ import matplotlib.colors as mcolors
 import matplotlib.ticker as ticker
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import PolyCollection
+import sklearn
+from sklearn import datasets
+from sklearn.decomposition import PCA
+from sklearn.linear_model import SGDClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import GridSearchCV
 
 # =======================================    
 # AUXILIARY METHODS
@@ -674,8 +680,6 @@ def plot_eigenval(eigenval, title_str, file_str):
     plt.plot( np.arange(0,len(Y)), Y, drawstyle='steps-post')
     plt.tick_params(labelsize=12)
     plt.ylabel("Relative value", fontsize=12)
-#    title_str = 'Scree plot: eigenvalue max=' + "{0:.5f}".format(eigenval.max())
-#    file_str = 'bestcase_eigenvalues.png'
     plt.title(title_str)
     plt.savefig(file_str)
     plt.close()
@@ -689,8 +693,6 @@ def plot_eigenvec(eigenvec, title_str, file_str):
 
     fig = plt.figure()
     sns.heatmap(X, center=0, linewidths=.5, cmap="viridis", cbar=True)
-#    title_str = 'Eigenvector matrix'
-#    file_str = 'bestcase_eigenvectors.png'
     plt.title(title_str)
     plt.savefig(file_str)
     plt.close()
@@ -779,6 +781,59 @@ def export_ensemble(ensemble):
     6) Ensemble generation code will read in ensemble output file provided here
     '''    
 
+def calc_pca(ds, draws, nens):
+
+    npar = len(ds.parameter)
+    X = draws
+    X_ave = np.mean(X, axis=0)
+    X_std = np.std(X, axis=0)
+
+    pca = PCA().fit(X)
+    pca_var = np.cumsum(pca.explained_variance_ratio_) * 100.0
+
+    # idx = np.where(pca_var > 0.99)
+    idx = 10
+
+    fig = plt.figure()
+    plt.plot(range(0,len(pca_var)), pca_var)
+    plt.scatter(idx, pca_var[idx])
+    plt.xlabel('Number of PCs')
+    plt.ylabel('Cumulative explained variance (%)')
+    title_str = str(idx) + ' PCs account for ' + "{0:.5f}".format(pca_var[idx]) + '% of the variance'
+    file_str = 'pca_variance.png'
+    plt.title(title_str)
+    plt.savefig(file_str)
+    plt.close()
+
+    #
+    # Preserve 90% of the variance with PCA
+    #
+
+    # n_PC = pca.n_components_
+    # n_PC = idx[0][0]
+    n_PC = idx
+
+    # PC = pca.transform(X)
+    # Xhat = pca.inverse_transform(PC)
+
+    Xhat = np.dot(pca.transform(X)[:,:n_PC], pca.components_[:n_PC,:])
+    Xhat += X_ave
+    
+    # NB: if X is a correlation matrix we must first multiply by X_std then add X_ave
+
+    for i in range(0,npar):
+
+        fig = plt.figure()
+        plt.plot(X[:,i],'blue')
+        plt.plot(Xhat[:,i],'red')
+        plt.xlabel('Draw')
+        plt.ylabel('Parameter value')
+        title_str = 'Harmonisation parameter: ' + str(i)
+        file_str = 'pca_fit' + str(i) + '.png'
+        plt.title(title_str)
+        plt.savefig(file_str)
+        plt.close()
+
 # =======================================    
 # MAIN BLOCK
 # =======================================    
@@ -812,11 +867,12 @@ if __name__ == "__main__":
 #    draws = np_load('draws_11_1000000.npy')
 #    draws = np_load('draws_12_1000000.npy')
 
+    calc_pca(ds, draws, nens)
+
     ensemble, ensemble_idx = calc_ensemble(ds, draws, npar, sensor, nens, npop)
 
     plot_ensemble_check(ds, ensemble)
     plot_ensemble_deltas(ds, ensemble, npar, sensor, nens)
-
     plot_bestcase_parameters(ds, npar, sensor)
     plot_bestcase_covariance(ds)
     plot_population_coefficients(ds, draws, npar, sensor, npop)
