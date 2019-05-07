@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.6
-# 4 May, 2019
+# Version 0.7
+# 7 May, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -451,7 +451,8 @@ def plot_population_cdf(ds, draws, npar, sensor, nens, npop):
             Z_est[:,k] = np.cumsum(hist) * binwidth
             F_est = edges[1:]
             label_str = sensor[j]
-            plt.plot(F_est, Z_est[:,k], marker='.', linewidth=0.25, label=label_str)
+#            plt.plot(F_est, Z_est[:,k], marker='.', linewidth=0.25, label=label_str)
+            plt.plot(F_est, Z_est[:,k], linewidth=0.25, label=label_str)
             plt.xlim([-6,6])
             plt.ylim([0,1])
             plt.xlabel('z-score')
@@ -791,8 +792,8 @@ def calc_pca(ds, draws, nens):
     pca = PCA().fit(X)
     pca_var = np.cumsum(pca.explained_variance_ratio_) * 100.0
 
-    # idx = np.where(pca_var > 0.99)
-    idx = 10
+    idx = np.where(pca_var > 0.99)
+    idx = 20
 
     fig = plt.figure()
     plt.plot(range(0,len(pca_var)), pca_var)
@@ -810,8 +811,8 @@ def calc_pca(ds, draws, nens):
     #
 
     # n_PC = pca.n_components_
-    # n_PC = idx[0][0]
-    n_PC = idx
+#    n_PC = idx[0][0]
+    n_PC = 20
 
     # PC = pca.transform(X)
     # Xhat = pca.inverse_transform(PC)
