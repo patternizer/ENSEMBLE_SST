@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.7
-# 7 May, 2019
+# Version 0.10
+# 13 May, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -73,6 +73,146 @@ def calc_eigen(X):
     eigenval, eigenvec = np.linalg.eig(X)
 
     return eigenval, eigenvec
+
+def calc_measurement_equation(ds, ensemble, nch):
+    '''
+    Use chanel-dependent measurement equations to determine how many PCs are needed to 
+    guarantee 0.001 K (1 mK) accuracy:
+
+    NB: harmonisation best-case + ensemble parameters --> a(1), a(2), a(3) and a(4) where relevant
+    NB: radiance --> BT conversion is done approximately by interpolation of the FCDR LUT
+    NB: radiance sensitivity is calculated using AVHRR noise characterisation data for::
+         i) e_ICT (emissivity)
+        ii) ccounts data: C_e, C_s and C_ict
+       iii) L_ict
+        iv) T_ict (normalised by T_mean and T_sdev)
+    '''
+    
+    # Sensor configuration for different channels (from Ralf Quast):
+    #
+    # | Sensor | T_min (K) | T_max (K) | T_mean (K) | T_sdev (K) | Measurement equation (11 µm & 12 µm / 3.7 µm) |
+    # |--------|-----------|-----------|------------|------------|-----------------------------------------------| 
+    # | m02    | 285.9     | 286.4     | 286.125823 | 0.049088   | 102 / 106                                     |
+    # | n19    | 286.9     | 288.3     | 287.754638 | 0.117681   | 102 / 106                                     |
+    # | n18    | 286.6     | 290.2     | 288.219774 | 0.607697   | 102 / 106                                     |
+    # | n17    | 286.1     | 298.2     | 288.106630 | 1.607656   | 102 / 106                                     |
+    # | n16    | 287.2     | 302.0     | 292.672201 | 3.805704   | 102 / 106                                     |
+    # | n15    | 285.1     | 300.6     | 294.758564 | 2.804361   | 102 / 106                                     |
+    # | n14    | 286.8     | 296.4     | 288.637636 | 1.053762   | 102 / 106                                     |
+    # | n12    | 287.2     | 302.8     | 290.327113 | 2.120666   | 102 / 106                                     |
+    # | n11    | 286.1     | 299.9     | 290.402168 | 3.694937   | 102 / 106                                     |
+
+    T_ave = np.array([ 286.125823, 287.754638, 288.219774, 288.106630, 292.672201, 294.758564, 288.637636, 290.327113, 290.402168 ])
+    T_std = np.array([ 0.049088, 0.117681, 0.607697, 1.607656, 3.805704, 2.804361, 1.053762, 2.120666, 3.694937])
+
+    parameter = ds['parameter'] 
+    L = np.empty(shape=(len(parameter)))
+    L_delta = np.empty(shape=(nens,len(parameter)))
+
+    if nch == 12:
+
+        e_ict = 0.98
+        C_ict = 434.0
+        C_s = 991.2
+        C_e = 
+        L_ict = 108.2
+        T_inst = 288.3
+        npar = 4
+
+        for i in range(len(sensor)):
+            
+            T_mean = T_ave[i]
+            T_sdev = T_std[i]
+            j = i * npar
+            a0 = parameter[j]
+            a1 = parameter[j+1]
+            a2 = parameter[j+2]
+            a3 = parameter[j+3]
+
+            # Measurement equation 102:
+            L[i] = a0 + ((L_ict * (e_ict + a1)) / (C_ict - C_s) + a2 * (C_e - C_ict)) * (C_e - C_s) + a3 * (T_inst - T_mean) / T_sdev
+
+            for k in range(0, nens):
+                
+                b0 = ensemble[j]
+                b1 = ensemble[j+1]
+                b2 = ensemble[j+2]
+                b3 = ensemble[j+3]
+
+                # Measurement equation 102:
+                L_ens = b0 + ((L_ict * (e_ict + b1)) / (C_ict - C_s) + b2 * (C_e - C_ict)) * (C_e - C_s) + b3 * (T_inst - T_mean) / T_sdev
+
+                L_delta[k,i] = L[i] - L_ens
+
+    if nch == 11:
+
+        e_ict = 0.98
+        C_ict = 475.5
+        C_s = 992.2
+        C_e = 
+        L_ict = 91.3
+        T_inst = 288.3
+        npar = 4
+
+        for i in range(len(sensor)):
+            
+            T_mean = T_ave[i]
+            T_sdev = T_std[i]
+            j = i * npar
+            a0 = parameter[j]
+            a1 = parameter[j+1]
+            a2 = parameter[j+2]
+            a3 = parameter[j+3]
+
+            # Measurement equation 102:
+            L[i] = a0 + ((L_ict * (e_ict + a1)) / (C_ict - C_s) + a2 * (C_e - C_ict)) * (C_e - C_s) + a3 * (T_inst - T_mean) / T_sdev
+
+            for k in range(0, nens):
+                
+                b0 = ensemble[j]
+                b1 = ensemble[j+1]
+                b2 = ensemble[j+2]
+                b3 = ensemble[j+3]
+
+                # Measurement equation 102:
+                L_ens = b0 + ((L_ict * (e_ict + b1)) / (C_ict - C_s) + b2 * (C_e - C_ict)) * (C_e - C_s) + b3 * (T_inst - T_mean) / T_sdev
+
+                L_delta[k,i] = L[i] - L_ens
+
+    if nch == 37:
+
+        e_ict = 0.98
+        C_ict = 856.0
+        C_s = 992.3
+        C_e = 
+        L_ict = 0.405
+        T_inst = 288.3
+        npar = 3
+
+        for i in range(len(sensor)):
+            
+            T_mean = T_ave[i]
+            T_sdev = T_std[i]
+            j = i * npar
+            a0 = parameter[j]
+            a1 = parameter[j+1]
+            a2 = parameter[j+2]
+
+            # Measurement equation 106:
+            L[i] = a0 + ((L_ict * (e_ict + a1)) / (C_ict - C_s)) * (C_e - C_s) + a2 * (T_inst - T_mean) / T_sdev
+
+            for k in range(0, nens):
+                
+                b0 = ensemble[j]
+                b1 = ensemble[j+1]
+                b2 = ensemble[j+2]
+
+                # Measurement equation 106:
+                L_ens = b0 + ((L_ict * (e_ict + b1)) / (C_ict - C_s)) * (C_e - C_s) + b2 * (T_inst - T_mean) / T_sdev
+
+                L_delta[k,i] = L[i] - L_ens
+
+    return L, delta_L
 
 def calc_draws(ds, npop):
     '''
@@ -705,6 +845,7 @@ def plot_ensemble_check(ds, ensemble):
     Calculate diff from harmonisation.
     Eigenvalue scree plot of covariance and correlation matrices.
     '''
+
     cov_par = ds.parameter_covariance_matrix
     cov_ensemble = np.cov(ensemble, rowvar=False)
     cov_diff = cov_par - cov_ensemble
@@ -783,6 +924,9 @@ def export_ensemble(ensemble):
     '''    
 
 def calc_pca(ds, draws, nens):
+    '''
+    Apply PCA to the draw matrix
+    '''
 
     npar = len(ds.parameter)
     X = draws
@@ -792,15 +936,17 @@ def calc_pca(ds, draws, nens):
     pca = PCA().fit(X)
     pca_var = np.cumsum(pca.explained_variance_ratio_) * 100.0
 
-    idx = np.where(pca_var > 0.99)
-    idx = 20
+#    idx = np.where(pca_var > 0.99)
+#    idx = 10-1
+    idx = len(pca_var)-1
 
     fig = plt.figure()
-    plt.plot(range(0,len(pca_var)), pca_var)
+    plt.plot(range(1,len(pca_var)+1), pca_var, marker='o', linestyle='-', color='r')
     plt.scatter(idx, pca_var[idx])
+    plt.xticks(range(1,len(pca_var)+1))
     plt.xlabel('Number of PCs')
     plt.ylabel('Cumulative explained variance (%)')
-    title_str = str(idx) + ' PCs account for ' + "{0:.5f}".format(pca_var[idx]) + '% of the variance'
+    title_str = str(idx+1) + ' PCs account for ' + "{0:.5f}".format(pca_var[idx]) + '% of the variance'
     file_str = 'pca_variance.png'
     plt.title(title_str)
     plt.savefig(file_str)
@@ -811,8 +957,8 @@ def calc_pca(ds, draws, nens):
     #
 
     # n_PC = pca.n_components_
-#    n_PC = idx[0][0]
-    n_PC = 20
+    # n_PC = idx[0][0]
+    n_PC = idx
 
     # PC = pca.transform(X)
     # Xhat = pca.inverse_transform(PC)
@@ -829,8 +975,8 @@ def calc_pca(ds, draws, nens):
         plt.plot(Xhat[:,i],'red')
         plt.xlabel('Draw')
         plt.ylabel('Parameter value')
-        title_str = 'Harmonisation parameter: ' + str(i)
-        file_str = 'pca_fit' + str(i) + '.png'
+        title_str = 'Harmonisation parameter: ' + str(i+1)
+        file_str = 'pca_fit' + str(i+1) + '.png'
         plt.title(title_str)
         plt.savefig(file_str)
         plt.close()
@@ -841,44 +987,55 @@ def calc_pca(ds, draws, nens):
     
 if __name__ == "__main__":
 
-#    parser = OptionParser("usage: %prog file_in npar npop nens")
+#    parser = OptionParser("usage: %prog nch npar npop nens")
 #    (options, args) = parser.parse_args()
-#    file_in = args[0]
+
+#    nch = args[0]
 #    npar = args[1]
 #    npop = args[2]
 #    nens = args[3]
 
-    file_in = "FIDUCEO_Harmonisation_Data_37.nc"
-#    file_in = "FIDUCEO_Harmonisation_Data_11.nc"
-#    file_in = "FIDUCEO_Harmonisation_Data_12.nc"
-    npar = 3
-#    npar = 4
-    npop = 1000000
-    nens = 11
-    sensor = ['METOPA','NOAA19','NOAA18','NOAA17','NOAA16','NOAA15','NOAA14','NOAA12','NOAA11']
+    nch = 37
+#    nch = 11
+#    nch = 12
+
+    if nch == 37:
+        file_in = "FIDUCEO_Harmonisation_Data_37.nc"
+        npar = 3
+        draws = np_load('draws_37_1000000.npy')
+    elif nch == 11:
+        file_in = "FIDUCEO_Harmonisation_Data_11.nc"
+        npar = 4
+        draws = np_load('draws_11_1000000.npy')
+    elif nch == 12:
+        file_in = "FIDUCEO_Harmonisation_Data_12.nc"
+        npar = 4
+        draws = np_load('draws_12_1000000.npy')
 
     ds = load_data(file_in)
+
+    nens = 11
+    sensor = ['METOPA','NOAA19','NOAA18','NOAA17','NOAA16','NOAA15','NOAA14','NOAA12','NOAA11']
+    npop = 1000000
+
 #    draws = calc_draws(ds, npop)
 
-    # 
-    # Fast load of draws array
-    #
+#    ensemble, ensemble_idx = calc_pca(ds, draws, nens)
+#    ensemble, ensemble_idx = calc_ensemble(ds, draws, npar, sensor, nens, npop)
 
-    draws = np_load('draws_37_1000000.npy')
-#    draws = np_load('draws_11_1000000.npy')
-#    draws = np_load('draws_12_1000000.npy')
+    ensemble = np.ones(shape=(nens,len(parameter)))
+#    ensemble = np.empty(shape=(nens,len(parameter)))
+    ensemble_idx = np.empty(shape=(nens))
 
-    calc_pca(ds, draws, nens)
+    L, L_delta = calc_measurement_equation(ds, ensemble_pca, nch)
 
-    ensemble, ensemble_idx = calc_ensemble(ds, draws, npar, sensor, nens, npop)
-
-    plot_ensemble_check(ds, ensemble)
-    plot_ensemble_deltas(ds, ensemble, npar, sensor, nens)
-    plot_bestcase_parameters(ds, npar, sensor)
-    plot_bestcase_covariance(ds)
-    plot_population_coefficients(ds, draws, npar, sensor, npop)
-    plot_population_histograms(ds, draws, npar, sensor, nens)
-    plot_population_cdf(ds, draws, npar, sensor, nens, npop)
+#    plot_ensemble_check(ds, ensemble)
+#    plot_ensemble_deltas(ds, ensemble, npar, sensor, nens)
+#    plot_bestcase_parameters(ds, npar, sensor)
+#    plot_bestcase_covariance(ds)
+#    plot_population_coefficients(ds, draws, npar, sensor, npop)
+#    plot_population_histograms(ds, draws, npar, sensor, nens)
+#    plot_population_cdf(ds, draws, npar, sensor, nens, npop)
 
 #    export_ensemble(ensemble)
 
