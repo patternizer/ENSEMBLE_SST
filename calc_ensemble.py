@@ -74,7 +74,7 @@ def calc_eigen(X):
 
     return eigenval, eigenvec
 
-def calc_measurement_equation(ds, ensemble, nch):
+def calc_measurement_equation(ds, ensemble, sensor, nens, nch):
     '''
     Use chanel-dependent measurement equations to determine how many PCs are needed to 
     guarantee 0.001 K (1 mK) accuracy:
@@ -86,6 +86,9 @@ def calc_measurement_equation(ds, ensemble, nch):
         ii) ccounts data: C_e, C_s and C_ict
        iii) L_ict
         iv) T_ict (normalised by T_mean and T_sdev)
+
+    Choose hot pixel (T_ict = 300K)
+    Choose cold pixel (T_ict = 270K) --> smaller delta L (--> more sensitive)
     '''
     
     # Sensor configuration for different channels (from Ralf Quast):
@@ -106,20 +109,21 @@ def calc_measurement_equation(ds, ensemble, nch):
     T_std = np.array([ 0.049088, 0.117681, 0.607697, 1.607656, 3.805704, 2.804361, 1.053762, 2.120666, 3.694937])
 
     parameter = ds['parameter'] 
-    L = np.empty(shape=(len(parameter)))
-    L_delta = np.empty(shape=(nens,len(parameter)))
+    nsensor = len(sensor)
+    L = np.empty(shape=nsensor)
+    L_delta = np.empty(shape=(nsensor,nens))
 
     if nch == 12:
 
         e_ict = 0.98
         C_ict = 434.0
         C_s = 991.2
-        C_e = 
+        C_e = 200
         L_ict = 108.2
         T_inst = 288.3
         npar = 4
 
-        for i in range(len(sensor)):
+        for i in range(nsensor):
             
             T_mean = T_ave[i]
             T_sdev = T_std[i]
@@ -132,29 +136,30 @@ def calc_measurement_equation(ds, ensemble, nch):
             # Measurement equation 102:
             L[i] = a0 + ((L_ict * (e_ict + a1)) / (C_ict - C_s) + a2 * (C_e - C_ict)) * (C_e - C_s) + a3 * (T_inst - T_mean) / T_sdev
 
-            for k in range(0, nens):
+            for k in range(nens):
                 
-                b0 = ensemble[j]
-                b1 = ensemble[j+1]
-                b2 = ensemble[j+2]
-                b3 = ensemble[j+3]
+                b0 = ensemble[k,j]
+                b1 = ensemble[k,j+1]
+                b2 = ensemble[k,j+2]
+                b3 = ensemble[k,j+3]
 
                 # Measurement equation 102:
                 L_ens = b0 + ((L_ict * (e_ict + b1)) / (C_ict - C_s) + b2 * (C_e - C_ict)) * (C_e - C_s) + b3 * (T_inst - T_mean) / T_sdev
 
-                L_delta[k,i] = L[i] - L_ens
+#                L_delta[i,k] = L[i] - L_ens
+                L_delta[i,k] = L_ens
 
     if nch == 11:
 
         e_ict = 0.98
         C_ict = 475.5
         C_s = 992.2
-        C_e = 
+        C_e = 200
         L_ict = 91.3
         T_inst = 288.3
         npar = 4
 
-        for i in range(len(sensor)):
+        for i in range(nsensor):
             
             T_mean = T_ave[i]
             T_sdev = T_std[i]
@@ -167,29 +172,30 @@ def calc_measurement_equation(ds, ensemble, nch):
             # Measurement equation 102:
             L[i] = a0 + ((L_ict * (e_ict + a1)) / (C_ict - C_s) + a2 * (C_e - C_ict)) * (C_e - C_s) + a3 * (T_inst - T_mean) / T_sdev
 
-            for k in range(0, nens):
+            for k in range(nens):
                 
-                b0 = ensemble[j]
-                b1 = ensemble[j+1]
-                b2 = ensemble[j+2]
-                b3 = ensemble[j+3]
+                b0 = ensemble[k,j]
+                b1 = ensemble[k,j+1]
+                b2 = ensemble[k,j+2]
+                b3 = ensemble[k,j+3]
 
                 # Measurement equation 102:
                 L_ens = b0 + ((L_ict * (e_ict + b1)) / (C_ict - C_s) + b2 * (C_e - C_ict)) * (C_e - C_s) + b3 * (T_inst - T_mean) / T_sdev
 
-                L_delta[k,i] = L[i] - L_ens
+#                L_delta[i,k] = L[i] - L_ens
+                L_delta[i,k] = L_ens
 
     if nch == 37:
 
         e_ict = 0.98
         C_ict = 856.0
         C_s = 992.3
-        C_e = 
+        C_e = 200
         L_ict = 0.405
         T_inst = 288.3
         npar = 3
 
-        for i in range(len(sensor)):
+        for i in range(nsensor):
             
             T_mean = T_ave[i]
             T_sdev = T_std[i]
@@ -201,18 +207,30 @@ def calc_measurement_equation(ds, ensemble, nch):
             # Measurement equation 106:
             L[i] = a0 + ((L_ict * (e_ict + a1)) / (C_ict - C_s)) * (C_e - C_s) + a2 * (T_inst - T_mean) / T_sdev
 
-            for k in range(0, nens):
+            for k in range(nens):
                 
-                b0 = ensemble[j]
-                b1 = ensemble[j+1]
-                b2 = ensemble[j+2]
+                b0 = ensemble[k,j]
+                b1 = ensemble[k,j+1]
+                b2 = ensemble[k,j+2]
 
                 # Measurement equation 106:
                 L_ens = b0 + ((L_ict * (e_ict + b1)) / (C_ict - C_s)) * (C_e - C_s) + b2 * (T_inst - T_mean) / T_sdev
 
-                L_delta[k,i] = L[i] - L_ens
+#                L_delta[i,k] = L[i] - L_ens
+                L_delta[i,k] = L_ens
 
-    return L, delta_L
+    fig, ax = plt.subplots()
+    plt.plot(L, marker='o', linestyle='--', color='k')
+    plt.plot(L_delta)
+    ax.set_xlabel('Sensor', fontsize=12)
+    ax.set_ylabel('Radiance, L', fontsize=12)
+    title_str = 'Radiance: L versus ensemble'
+    ax.set_title(title_str, fontsize=12)
+    file_str = "radiance_ensemble" + ".png"
+    plt.savefig(file_str)        
+    plt.close('all')    
+
+    return L, L_delta
 
 def calc_draws(ds, npop):
     '''
@@ -1017,25 +1035,22 @@ if __name__ == "__main__":
     nens = 11
     sensor = ['METOPA','NOAA19','NOAA18','NOAA17','NOAA16','NOAA15','NOAA14','NOAA12','NOAA11']
     npop = 1000000
+    nparameter = len(ds.parameter)
 
 #    draws = calc_draws(ds, npop)
 
 #    ensemble, ensemble_idx = calc_pca(ds, draws, nens)
-#    ensemble, ensemble_idx = calc_ensemble(ds, draws, npar, sensor, nens, npop)
+    ensemble, ensemble_idx = calc_ensemble(ds, draws, npar, sensor, nens, npop)
 
-    ensemble = np.ones(shape=(nens,len(parameter)))
-#    ensemble = np.empty(shape=(nens,len(parameter)))
-    ensemble_idx = np.empty(shape=(nens))
-
-    L, L_delta = calc_measurement_equation(ds, ensemble_pca, nch)
-
-#    plot_ensemble_check(ds, ensemble)
-#    plot_ensemble_deltas(ds, ensemble, npar, sensor, nens)
-#    plot_bestcase_parameters(ds, npar, sensor)
-#    plot_bestcase_covariance(ds)
-#    plot_population_coefficients(ds, draws, npar, sensor, npop)
-#    plot_population_histograms(ds, draws, npar, sensor, nens)
-#    plot_population_cdf(ds, draws, npar, sensor, nens, npop)
+    L, L_delta = calc_measurement_equation(ds, ensemble, sensor, nens, nch)
+    
+    plot_ensemble_check(ds, ensemble)
+    plot_ensemble_deltas(ds, ensemble, npar, sensor, nens)
+    plot_bestcase_parameters(ds, npar, sensor)
+    plot_bestcase_covariance(ds)
+    plot_population_coefficients(ds, draws, npar, sensor, npop)
+    plot_population_histograms(ds, draws, npar, sensor, nens)
+    plot_population_cdf(ds, draws, npar, sensor, nens, npop)
 
 #    export_ensemble(ensemble)
 
