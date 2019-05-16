@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.10
-# 13 May, 2019
+# Version 0.11
+# 16 May, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -74,7 +74,19 @@ def calc_eigen(X):
 
     return eigenval, eigenvec
 
-def calc_measurement_equation(ds, ensemble, sensor, nens, nch):
+def convert_L_BT(L, L_delta, mtac3a, mtac3b):
+
+    lut_bt_3a = mtac3a.lookup_table_BT
+    lut_l_3a = mtac3a.lookup_table_radiance
+    lut_bt_3b = mtac3b.lookup_table_BT
+    lut_l_3b = mtac3b.lookup_table_radiance
+
+    BT = 1
+    BT_delta = 1
+
+    return BT, BT_delta
+
+def calc_measurement_equation(ds, ensemble, sensor, nens, nch, fcdr, flag_warm):
     '''
     Use chanel-dependent measurement equations to determine how many PCs are needed to 
     guarantee 0.001 K (1 mK) accuracy:
@@ -113,88 +125,58 @@ def calc_measurement_equation(ds, ensemble, sensor, nens, nch):
     L = np.empty(shape=nsensor)
     L_delta = np.empty(shape=(nsensor,nens))
 
-    if nch == 12:
+    ni = fcdr.nx
+    nj = fcdr.ny
+    t = fcdr.time
+    lat = fcdr.latitude
+    lon = fcdr.longitude
 
-        e_ict = 0.98
-        C_ict = 434.0
-        C_s = 991.2
-        C_e = 200
-        L_ict = 108.2
-        T_inst = 288.3
-        npar = 4
+    C_ict_37 = fcdr.ch3_bb_counts  # min=866.9,     max=872.2
+    C_s_37 = fcdr.ch3_space_counts # min=994.4,     max=995.6
+    C_e_37 = fcdr.ch3_earth_counts # min=774.0,     max=996.0
+    L_ict_37 = fcdr.ICT_Rad_Ch3    # min=0.321556,  max=0.338641
+    C_ict_11 = fcdr.ch4_bb_counts  # min=501.0,     max=529.2
+    C_s_11 = fcdr.ch4_space_counts # min=992.0,     max=997.0
+    C_e_11 = fcdr.ch4_earth_counts # min=309.0,     max=958.0
+    L_ict_11 = fcdr.ICT_Rad_Ch4    # min=89.93659,  max=91.58755
+    C_ict_12 = fcdr.ch5_bb_counts  # min=478.2,     max=508.8
+    C_s_12 = fcdr.ch5_space_counts # min=992.0,     max=996.5
+    C_e_12 = fcdr.ch5_earth_counts # min=301.0,     max=946.0
+    L_ict_12 = fcdr.ICT_Rad_Ch5    # min=104.53748, max=106.28082
+    T_prt = fcdr.prt               # min=285.61212, max=286.7208 
 
-        for i in range(nsensor):
-            
-            T_mean = T_ave[i]
-            T_sdev = T_std[i]
-            j = i * npar
-            a0 = parameter[j]
-            a1 = parameter[j+1]
-            a2 = parameter[j+2]
-            a3 = parameter[j+3]
+    gd_cold_pixel_37 = C_e_37 == C_e_37.min()
+    gd_warm_pixel_37 = C_e_37 == C_e_37.max()
+    gd_cold_pixel_11 = C_e_11 == C_e_11.min()
+    gd_warm_pixel_11 = C_e_11 == C_e_11.max()
+    gd_cold_pixel_12 = C_e_12 == C_e_12.min()
+    gd_warm_pixel_12 = C_e_12 == C_e_12.max()
 
-            # Measurement equation 102:
-            L[i] = a0 + ((L_ict * (e_ict + a1)) / (C_ict - C_s) + a2 * (C_e - C_ict)) * (C_e - C_s) + a3 * (T_inst - T_mean) / T_sdev
+    cold_pixel_37 = np.where(gd_cold_pixel_37 > 0)[0][0]
+    warm_pixel_37 = np.where(gd_warm_pixel_37 > 0)[0][0]
+    cold_pixel_11 = np.where(gd_cold_pixel_11 > 0)[0][0]
+    warm_pixel_11 = np.where(gd_warm_pixel_11 > 0)[0][0]
+    cold_pixel_12 = np.where(gd_cold_pixel_12 > 0)[0][0]
+    warm_pixel_12 = np.where(gd_warm_pixel_12 > 0)[0][0]
 
-            for k in range(nens):
-                
-                b0 = ensemble[k,j]
-                b1 = ensemble[k,j+1]
-                b2 = ensemble[k,j+2]
-                b3 = ensemble[k,j+3]
-
-                # Measurement equation 102:
-                L_ens = b0 + ((L_ict * (e_ict + b1)) / (C_ict - C_s) + b2 * (C_e - C_ict)) * (C_e - C_s) + b3 * (T_inst - T_mean) / T_sdev
-
-#                L_delta[i,k] = L[i] - L_ens
-                L_delta[i,k] = L_ens
-
-    if nch == 11:
-
-        e_ict = 0.98
-        C_ict = 475.5
-        C_s = 992.2
-        C_e = 200
-        L_ict = 91.3
-        T_inst = 288.3
-        npar = 4
-
-        for i in range(nsensor):
-            
-            T_mean = T_ave[i]
-            T_sdev = T_std[i]
-            j = i * npar
-            a0 = parameter[j]
-            a1 = parameter[j+1]
-            a2 = parameter[j+2]
-            a3 = parameter[j+3]
-
-            # Measurement equation 102:
-            L[i] = a0 + ((L_ict * (e_ict + a1)) / (C_ict - C_s) + a2 * (C_e - C_ict)) * (C_e - C_s) + a3 * (T_inst - T_mean) / T_sdev
-
-            for k in range(nens):
-                
-                b0 = ensemble[k,j]
-                b1 = ensemble[k,j+1]
-                b2 = ensemble[k,j+2]
-                b3 = ensemble[k,j+3]
-
-                # Measurement equation 102:
-                L_ens = b0 + ((L_ict * (e_ict + b1)) / (C_ict - C_s) + b2 * (C_e - C_ict)) * (C_e - C_s) + b3 * (T_inst - T_mean) / T_sdev
-
-#                L_delta[i,k] = L[i] - L_ens
-                L_delta[i,k] = L_ens
+    e_ict = 0.985140
 
     if nch == 37:
 
-        e_ict = 0.98
-        C_ict = 856.0
-        C_s = 992.3
-        C_e = 200
-        L_ict = 0.405
-        T_inst = 288.3
-        npar = 3
+        if flag_warm == 0:
+            C_ict = float(C_ict_37[cold_pixel_37])
+            C_s = float(C_s_37[cold_pixel_37])
+            C_e = float(C_e_37[cold_pixel_37,205])
+            L_ict = float(L_ict_37[cold_pixel_37])
+            T_inst = float(T_prt[cold_pixel_37])
+        else:
+            C_ict = float(C_ict_37[warm_pixel_37])
+            C_s = float(C_s_37[warm_pixel_37])
+            C_e = float(C_e_37[warm_pixel_37,205])
+            L_ict = float(L_ict_37[warm_pixel_37])
+            T_inst = float(T_prt[warm_pixel_37])
 
+        npar = 3
         for i in range(nsensor):
             
             T_mean = T_ave[i]
@@ -219,16 +201,111 @@ def calc_measurement_equation(ds, ensemble, sensor, nens, nch):
 #                L_delta[i,k] = L[i] - L_ens
                 L_delta[i,k] = L_ens
 
+    if nch == 11:
+
+        if flag_warm == 0:
+            C_ict = float(C_ict_11[cold_pixel_11])
+            C_s = float(C_s_11[cold_pixel_11])
+            C_e = float(C_e_11[cold_pixel_11, 205])
+            L_ict = float(L_ict_11[cold_pixel_11])
+            T_inst = float(T_prt[cold_pixel_11])
+        else:
+            C_ict = float(C_ict_11[warm_pixel_11])
+            C_s = float(C_s_11[warm_pixel_11])
+            C_e = float(C_e_11[warm_pixel_11, 205])
+            L_ict = float(L_ict_11[warm_pixel_11])
+            T_inst = float(T_prt[warm_pixel_11])
+
+        npar = 4
+        for i in range(nsensor):
+            
+            T_mean = T_ave[i]
+            T_sdev = T_std[i]
+            j = i * npar
+            a0 = parameter[j]
+            a1 = parameter[j+1]
+            a2 = parameter[j+2]
+            a3 = parameter[j+3]
+
+            # Measurement equation 102:
+            L[i] = a0 + ((L_ict * (e_ict + a1)) / (C_ict - C_s) + a2 * (C_e - C_ict)) * (C_e - C_s) + a3 * (T_inst - T_mean) / T_sdev
+
+            for k in range(nens):
+                
+                b0 = ensemble[k,j]
+                b1 = ensemble[k,j+1]
+                b2 = ensemble[k,j+2]
+                b3 = ensemble[k,j+3]
+
+                # Measurement equation 102:
+                L_ens = b0 + ((L_ict * (e_ict + b1)) / (C_ict - C_s) + b2 * (C_e - C_ict)) * (C_e - C_s) + b3 * (T_inst - T_mean) / T_sdev
+
+#                L_delta[i,k] = L[i] - L_ens
+                L_delta[i,k] = L_ens
+
+    if nch == 12:
+
+        if flag_warm == 0:
+            C_ict = float(C_ict_12[cold_pixel_12])
+            C_s = float(C_s_12[cold_pixel_12])
+            C_e = float(C_e_12[cold_pixel_12, 205])
+            L_ict = float(L_ict_12[cold_pixel_12])
+            T_inst = float(T_prt[cold_pixel_12])
+        else:
+            C_ict = float(C_ict_12[warm_pixel_12])
+            C_s = float(C_s_12[warm_pixel_12])
+            C_e = float(C_e_12[warm_pixel_12, 205])
+            L_ict = float(L_ict_12[warm_pixel_12])
+            T_inst = float(T_prt[warm_pixel_12])
+            
+        npar = 4
+        for i in range(nsensor):
+            
+            T_mean = T_ave[i]
+            T_sdev = T_std[i]
+            j = i * npar
+            a0 = parameter[j]
+            a1 = parameter[j+1]
+            a2 = parameter[j+2]
+            a3 = parameter[j+3]
+
+            # Measurement equation 102:
+            L[i] = a0 + ((L_ict * (e_ict + a1)) / (C_ict - C_s) + a2 * (C_e - C_ict)) * (C_e - C_s) + a3 * (T_inst - T_mean) / T_sdev
+
+            for k in range(nens):
+                
+                b0 = ensemble[k,j]
+                b1 = ensemble[k,j+1]
+                b2 = ensemble[k,j+2]
+                b3 = ensemble[k,j+3]
+
+                # Measurement equation 102:
+                L_ens = b0 + ((L_ict * (e_ict + b1)) / (C_ict - C_s) + b2 * (C_e - C_ict)) * (C_e - C_s) + b3 * (T_inst - T_mean) / T_sdev
+
+#                L_delta[i,k] = L[i] - L_ens
+                L_delta[i,k] = L_ens
+
     fig, ax = plt.subplots()
-    plt.plot(L, marker='o', linestyle='--', color='k')
-    plt.plot(L_delta)
-    ax.set_xlabel('Sensor', fontsize=12)
+    for k in range(nens):
+
+        label_str = 'Ens(' + str(k+1) + ')'
+        plt.plot(range(1,nsensor+1), L_delta[:,k], linewidth=1.0, label=label_str)
+
+    plt.plot(range(1,nsensor+1), L, marker='o', linestyle='--', color='k', label='Best-case')
+    plt.legend(fontsize=10, ncol=1)
+    plt.xticks(range(1,nsensor+1))
+    ax.set_xticklabels(sensor,rotation=90)
     ax.set_ylabel('Radiance, L', fontsize=12)
-    title_str = 'Radiance: L versus ensemble'
+    title_str = 'Best-case versus ensemble radiance, L: C_e=' + "{0:.5f}".format(C_e)
     ax.set_title(title_str, fontsize=12)
-    file_str = "radiance_ensemble" + ".png"
+    plt.tight_layout()
+    if flag_warm == 0:
+        file_str = "radiance_ensemble_cold_pixel_" + str(nch) + ".png"
+    else:
+        file_str = "radiance_ensemble_warm_pixel_" + str(nch) + ".png"
+
     plt.savefig(file_str)        
-    plt.close('all')    
+    plt.close('all')
 
     return L, L_delta
 
@@ -1013,9 +1090,9 @@ if __name__ == "__main__":
 #    npop = args[2]
 #    nens = args[3]
 
-    nch = 37
+#    nch = 37
 #    nch = 11
-#    nch = 12
+    nch = 12
 
     if nch == 37:
         file_in = "FIDUCEO_Harmonisation_Data_37.nc"
@@ -1031,10 +1108,14 @@ if __name__ == "__main__":
         draws = np_load('draws_12_1000000.npy')
 
     ds = load_data(file_in)
+    fcdr = xarray.open_dataset("avhrr_fcdr_full.nc", decode_times=False)
+    flag_warm = 1
+    mtac3a = xarray.open_dataset("FIDUCEO_FCDR_L1C_AVHRR_MTAC3A_20110619225807_20110620005518_EASY_v0.2Bet_fv2.0.0.nc")
+    mtac3b = xarray.open_dataset("FIDUCEO_FCDR_L1C_AVHRR_MTAC3B_20110619231357_20110620013100_EASY_v0.2Bet_fv2.0.0.nc")
 
     nens = 11
     sensor = ['METOPA','NOAA19','NOAA18','NOAA17','NOAA16','NOAA15','NOAA14','NOAA12','NOAA11']
-    npop = 1000000
+    npop = 100000
     nparameter = len(ds.parameter)
 
 #    draws = calc_draws(ds, npop)
@@ -1042,7 +1123,8 @@ if __name__ == "__main__":
 #    ensemble, ensemble_idx = calc_pca(ds, draws, nens)
     ensemble, ensemble_idx = calc_ensemble(ds, draws, npar, sensor, nens, npop)
 
-    L, L_delta = calc_measurement_equation(ds, ensemble, sensor, nens, nch)
+    L, L_delta = calc_measurement_equation(ds, ensemble, sensor, nens, nch, fcdr, flag_warm)
+    BT, BT_delta = convert_L_BT(L, L_delta, mtac3a, mtac3b)
     
     plot_ensemble_check(ds, ensemble)
     plot_ensemble_deltas(ds, ensemble, npar, sensor, nens)
@@ -1053,6 +1135,4 @@ if __name__ == "__main__":
     plot_population_cdf(ds, draws, npar, sensor, nens, npop)
 
 #    export_ensemble(ensemble)
-
-
 
