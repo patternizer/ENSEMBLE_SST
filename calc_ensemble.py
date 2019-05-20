@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.11
-# 16 May, 2019
+# Version 0.12
+# 18 May, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -54,6 +54,13 @@ def fmt(x, pos):
 
     return r'${} \times 10^{{{}}}$'.format(a, b)
 
+def find_nearest(array, value):
+
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+
+    return array[idx], idx
+
 # =======================================    
 
 def load_data(file_in):
@@ -74,15 +81,45 @@ def calc_eigen(X):
 
     return eigenval, eigenvec
 
-def convert_L_BT(L, L_delta, mtac3a, mtac3b):
-
+def convert_L_BT(L, L_delta, mtac3a, mtac3b, nch):
+    '''
+    Look-up tables to convert radiance from the Measurement Equation to brightness temperature (BT) and vice-versa
+    '''
     lut_bt_3a = mtac3a.lookup_table_BT
     lut_l_3a = mtac3a.lookup_table_radiance
     lut_bt_3b = mtac3b.lookup_table_BT
     lut_l_3b = mtac3b.lookup_table_radiance
 
-    BT = 1
-    BT_delta = 1
+    BT = np.empty(shape=L_delta.shape[0])
+    BT_delta = np.empty(shape=(L_delta.shape[0],L_delta.shape[1]))
+
+    BT = np.interp(L, lut_l_3a[:,3], lut_bt_3a[:,3])
+    BT_delta = np.interp(L_delta, lut_l_3a[:,3], lut_bt_3a[:,3])  
+
+#    # loop over ensemble
+#    for j in range(L_delta.shape[1]):
+
+#        # loop over sensor
+#        for i in range(L_delta.shape[0]):
+
+#            if nch == 37:
+#                nearest, idx = find_nearest(lut_l_3a[:,3], L[i])
+#            elif nch == 11:
+#                nearest, idx = find_nearest(lut_l_3a[:,4], L[i])
+#            else:
+#                nearest, idx = find_nearest(lut_l_3a[:,5], L[i])
+
+#            BT[i] = lut_bt_3a[idx,3]
+
+#            if nch == 37:
+#                nearest, idx = find_nearest(lut_l_3a[:,3], L_delta[i,j])
+#            elif nch == 11:
+#                nearest, idx = find_nearest(lut_l_3a[:,4], L_delta[i,j])
+#            else:
+#                nearest, idx = find_nearest(lut_l_3a[:,5], L_delta[i,j])
+
+#            # BT_delta[i,j] = lut_bt_3a[idx,3] - BT[i]
+#            BT_delta[i,j] = lut_bt_3a[idx,3]
 
     return BT, BT_delta
 
@@ -120,7 +157,8 @@ def calc_measurement_equation(ds, ensemble, sensor, nens, nch, fcdr, flag_warm):
     T_ave = np.array([ 286.125823, 287.754638, 288.219774, 288.106630, 292.672201, 294.758564, 288.637636, 290.327113, 290.402168 ])
     T_std = np.array([ 0.049088, 0.117681, 0.607697, 1.607656, 3.805704, 2.804361, 1.053762, 2.120666, 3.694937])
 
-    parameter = ds['parameter'] 
+    parameter = ds['parameter']
+
     nsensor = len(sensor)
     L = np.empty(shape=nsensor)
     L_delta = np.empty(shape=(nsensor,nens))
@@ -285,6 +323,10 @@ def calc_measurement_equation(ds, ensemble, sensor, nens, nch, fcdr, flag_warm):
 #                L_delta[i,k] = L[i] - L_ens
                 L_delta[i,k] = L_ens
 
+    # NB: for this channel, scale by factor of 100 to get correct
+    L = L * 100.0
+    L_delta = L_delta * 100.0
+
     fig, ax = plt.subplots()
     for k in range(nens):
 
@@ -297,6 +339,7 @@ def calc_measurement_equation(ds, ensemble, sensor, nens, nch, fcdr, flag_warm):
     ax.set_xticklabels(sensor,rotation=90)
     ax.set_ylabel('Radiance, L', fontsize=12)
     title_str = 'Best-case versus ensemble radiance, L: C_e=' + "{0:.5f}".format(C_e)
+#    title_str = 'Ensemble delta radiance: C_e=' + "{0:.5f}".format(C_e)
     ax.set_title(title_str, fontsize=12)
     plt.tight_layout()
     if flag_warm == 0:
@@ -1090,9 +1133,11 @@ if __name__ == "__main__":
 #    npop = args[2]
 #    nens = args[3]
 
-#    nch = 37
+    flag_warm = 1
+
+    nch = 37
 #    nch = 11
-    nch = 12
+#    nch = 12
 
     if nch == 37:
         file_in = "FIDUCEO_Harmonisation_Data_37.nc"
@@ -1109,30 +1154,33 @@ if __name__ == "__main__":
 
     ds = load_data(file_in)
     fcdr = xarray.open_dataset("avhrr_fcdr_full.nc", decode_times=False)
-    flag_warm = 1
     mtac3a = xarray.open_dataset("FIDUCEO_FCDR_L1C_AVHRR_MTAC3A_20110619225807_20110620005518_EASY_v0.2Bet_fv2.0.0.nc")
     mtac3b = xarray.open_dataset("FIDUCEO_FCDR_L1C_AVHRR_MTAC3B_20110619231357_20110620013100_EASY_v0.2Bet_fv2.0.0.nc")
 
     nens = 11
     sensor = ['METOPA','NOAA19','NOAA18','NOAA17','NOAA16','NOAA15','NOAA14','NOAA12','NOAA11']
-    npop = 100000
+    npop = 1000000
     nparameter = len(ds.parameter)
 
 #    draws = calc_draws(ds, npop)
 
 #    ensemble, ensemble_idx = calc_pca(ds, draws, nens)
-    ensemble, ensemble_idx = calc_ensemble(ds, draws, npar, sensor, nens, npop)
+#    ensemble, ensemble_idx = calc_ensemble(ds, draws, npar, sensor, nens, npop)
+
+    ensemble = np_load('ensemble_37_1000000.npy')
+    ensemble_idx = np_load('ensemble_idx_37_1000000.npy')
 
     L, L_delta = calc_measurement_equation(ds, ensemble, sensor, nens, nch, fcdr, flag_warm)
-    BT, BT_delta = convert_L_BT(L, L_delta, mtac3a, mtac3b)
-    
-    plot_ensemble_check(ds, ensemble)
-    plot_ensemble_deltas(ds, ensemble, npar, sensor, nens)
-    plot_bestcase_parameters(ds, npar, sensor)
-    plot_bestcase_covariance(ds)
-    plot_population_coefficients(ds, draws, npar, sensor, npop)
-    plot_population_histograms(ds, draws, npar, sensor, nens)
-    plot_population_cdf(ds, draws, npar, sensor, nens, npop)
+    BT, BT_delta = convert_L_BT(L, L_delta, mtac3a, mtac3b, nch)
+    print(BT, BT_delta)
+
+#    plot_ensemble_check(ds, ensemble)
+#    plot_ensemble_deltas(ds, ensemble, npar, sensor, nens)
+#    plot_bestcase_parameters(ds, npar, sensor)
+#    plot_bestcase_covariance(ds)
+#    plot_population_coefficients(ds, draws, npar, sensor, npop)
+#    plot_population_histograms(ds, draws, npar, sensor, nens)
+#    plot_population_cdf(ds, draws, npar, sensor, nens, npop)
 
 #    export_ensemble(ensemble)
 
