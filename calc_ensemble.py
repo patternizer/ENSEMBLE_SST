@@ -5,8 +5,8 @@
 # call as: python calc_ensemble.py
 
 # =======================================
-# Version 0.12
-# 18 May, 2019
+# Version 0.13
+# 20 May, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -93,8 +93,20 @@ def convert_L_BT(L, L_delta, mtac3a, mtac3b, nch):
     BT = np.empty(shape=L_delta.shape[0])
     BT_delta = np.empty(shape=(L_delta.shape[0],L_delta.shape[1]))
 
-    BT = np.interp(L, lut_l_3a[:,3], lut_bt_3a[:,3])
-    BT_delta = np.interp(L_delta, lut_l_3a[:,3], lut_bt_3a[:,3])  
+    if nch == 37:
+
+        BT = np.interp(L, lut_l_3a[:,3], lut_bt_3a[:,3])
+        BT_delta = np.interp(L_delta, lut_l_3a[:,3], lut_bt_3a[:,3])  
+
+    elif nch == 11:
+
+        BT = np.interp(L, lut_l_3a[:,4], lut_bt_3a[:,4])
+        BT_delta = np.interp(L_delta, lut_l_3a[:,4], lut_bt_3a[:,4])  
+
+    else:
+
+        BT = np.interp(L, lut_l_3a[:,5], lut_bt_3a[:,5])
+        BT_delta = np.interp(L_delta, lut_l_3a[:,5], lut_bt_3a[:,5])  
 
 #    # loop over ensemble
 #    for j in range(L_delta.shape[1]):
@@ -1135,9 +1147,9 @@ if __name__ == "__main__":
 
     flag_warm = 1
 
-    nch = 37
+#    nch = 37
 #    nch = 11
-#    nch = 12
+    nch = 12
 
     if nch == 37:
         file_in = "FIDUCEO_Harmonisation_Data_37.nc"
@@ -1165,10 +1177,20 @@ if __name__ == "__main__":
 #    draws = calc_draws(ds, npop)
 
 #    ensemble, ensemble_idx = calc_pca(ds, draws, nens)
-#    ensemble, ensemble_idx = calc_ensemble(ds, draws, npar, sensor, nens, npop)
+    ensemble, ensemble_idx = calc_ensemble(ds, draws, npar, sensor, nens, npop)
 
-    ensemble = np_load('ensemble_37_1000000.npy')
-    ensemble_idx = np_load('ensemble_idx_37_1000000.npy')
+    np_save('ensemble_12_1000000.npy', ensemble, allow_pickle=False)
+    np_save('ensemble_idx_12_1000000.npy', ensemble_idx, allow_pickle=False)
+
+    if nch == 37:
+        ensemble = np_load('ensemble_37_1000000.npy')
+        ensemble_idx = np_load('ensemble_idx_37_1000000.npy')
+    elif nch == 11:
+        ensemble = np_load('ensemble_11_1000000.npy')
+        ensemble_idx = np_load('ensemble_idx_11_1000000.npy')
+    else:
+        ensemble = np_load('ensemble_12_1000000.npy')
+        ensemble_idx = np_load('ensemble_idx_12_1000000.npy')
 
     L, L_delta = calc_measurement_equation(ds, ensemble, sensor, nens, nch, fcdr, flag_warm)
     BT, BT_delta = convert_L_BT(L, L_delta, mtac3a, mtac3b, nch)
