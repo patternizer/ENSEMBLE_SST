@@ -264,36 +264,6 @@ def calc_radiance_ensemble(ds, ensemble, isensor, nens, nch, fcdr):
 
     return L, L_delta
         
-def plot_radiance_deltas(L, L_delta, nens, nch):
-
-    fig, ax = plt.subplots()
-    for k in range(nens):
-
-        label_str = 'Ens(' + str(k+1) + ')'
-        plt.plot(L - L_delta[:,k], linewidth=1.0, label=label_str)
-
-    plt.legend(fontsize=10, ncol=1)
-    ax.set_ylabel('Radiance difference', fontsize=12)
-    plt.tight_layout()            
-    file_str = "radiance_ensemble_" + str(nch) + ".png"
-    plt.savefig(file_str)        
-    plt.close('all')
-
-def plot_bt_deltas(BT, BT_delta, nens, nch):
-
-    fig, ax = plt.subplots()
-    for k in range(nens):
-
-        label_str = 'Ens(' + str(k+1) + ')'
-        plt.plot(BT - BT_delta[:,k], linewidth=1.0, label=label_str)
-
-    plt.legend(fontsize=10, ncol=1)
-    ax.set_ylabel('BT difference', fontsize=12)
-    plt.tight_layout()            
-    file_str = "bt_ensemble_" + str(nch) + ".png"
-    plt.savefig(file_str)        
-    plt.close('all')
-
 def calc_draws(ds, npop):
     '''
     Sample from the N-normal distribution using the harmonisation parameters as the mean values (best case) and the covariance matrix as the N-variance
@@ -628,7 +598,6 @@ if __name__ == "__main__":
 
         plot_radiance_deltas(L, L_delta, nens, nch)
         plot_bt_deltas(BT, BT_delta, nens, nch)
-
         plot_ensemble_check(ds, ensemble)
         plot_ensemble_deltas(ds, ensemble, sensor, nens)
         plot_bestcase_parameters(ds, sensor)
@@ -636,4 +605,5 @@ if __name__ == "__main__":
         plot_population_coefficients(ds, draws, sensor, npop)
         plot_population_histograms(ds, draws, sensor, nens)
         plot_population_cdf(ds, draws, sensor, nens, npop)
+
 
