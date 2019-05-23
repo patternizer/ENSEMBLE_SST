@@ -103,7 +103,7 @@ def plot_bestcase_covariance(ds):
     Y = np.array(parameter_covariance_matrix)
 
     fig = plt.figure()
-    sns.heatmap(Y, center=0, linewidths=.5, cmap="viridis", cbar=True, vmin=-1.0e-9, vmax=1.0e-6, cbar_kws={"extend":'both', "format":ticker.FuncFormatter(fmt)})
+    sns.heatmap(Y, center=0, linewidths=.5, cmap="viridis", cbar=True, vmin=-1.0e-9, vmax=1.0e-6, cbar_kws={"extend":'both', "format":mticker.FuncFormatter(fmt)})
     title_str = "Covariance matrix (relative): max=" + "{0:.3e}".format(Y.max())
     plt.title(title_str)
     plt.savefig('bestcase_covariance_matrix.png')    
@@ -292,14 +292,12 @@ def plot_orbit_var(lat, lon, var, projection, filestr, titlestr):
     for mask in (x0>threshold,x0<=threshold):
 
         im = ax.pcolor(ma.masked_where(mask, x0), ma.masked_where(mask, x1), ma.masked_where(mask, z), vmin=z.min(),vmax=z.max(), transform=ax.projection, cmap=cmap)
-#        im = ax.contourf(ma.masked_where(mask, x0), ma.masked_where(mask, x1), ma.masked_where(mask, z[0,:,:].values), vmin=z.min(),vmax=z.max(), transform=ax.projection, cmap=cmap)
     cb = plt.colorbar(im, orientation="horizontal", extend='both', label='sst [K]')
 
     if projection == 'platecarree':
 
         ax.set_extent([-180, 180, -90, 90], crs=p)
-        gl = ax.gridlines(crs=p, draw_labels=True, linewidth=1, color='gr\
-ay', alpha=0.5, linestyle='-')
+        gl = ax.gridlines(crs=p, draw_labels=True, linewidth=1, color='gray', alpha=0.5, linestyle='-')
         gl.xlabels_top = False
         gl.ylabels_right = False
         gl.xlines = True
