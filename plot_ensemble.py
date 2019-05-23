@@ -4,8 +4,8 @@
 
 # Code include segment in: calc_ensemble.py
 # =======================================
-# Version 0.15
-# 22 May, 2019
+# Version 0.16
+# 23 May, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -234,7 +234,7 @@ def plot_population_cdf(ds, draws, sensor, nens, npop):
 
     plt.close('all')
 
-def plot_radiance_deltas(L, L_delta, nens, nch):
+def plot_L_deltas(L, L_delta, nens, nch):
 
     fig, ax = plt.subplots()
     for k in range(nens):
@@ -249,7 +249,7 @@ def plot_radiance_deltas(L, L_delta, nens, nch):
     plt.savefig(file_str)
     plt.close('all')
 
-def plot_bt_deltas(BT, BT_delta, nens, nch):
+def plot_BT_deltas(BT, BT_delta, nens, nch):
 
     fig, ax = plt.subplots()
     for k in range(nens):
@@ -263,6 +263,54 @@ def plot_bt_deltas(BT, BT_delta, nens, nch):
     file_str = "bt_ensemble_" + str(nch) + ".png"
     plt.savefig(file_str)
     plt.close('all')
+
+def plot_orbit_var(lat, lon, var, projection, filestr, titlestr):
+
+    x = lon[::10,::10]
+    y = lat[::10,::10]
+    z = var[::10,::10]
+
+    cmap = 'viridis'
+    fig  = plt.figure()
+    if projection == 'platecarree':
+        p = ccrs.PlateCarree(central_longitude=0)
+        threshold = 0
+    if projection == 'mollweide':
+        p = ccrs.Mollweide(central_longitude=0)
+        threshold = 1e6
+    if projection == 'robinson':
+        p = ccrs.Robinson(central_longitude=0)
+        threshold = 0
+
+    ax = plt.axes(projection=p)
+    ax.coastlines()
+    g = ccrs.Geodetic()
+    trans = ax.projection.transform_points(g, x.values, y.values)
+    x0 = trans[:,:,0]
+    x1 = trans[:,:,1]
+
+    for mask in (x0>threshold,x0<=threshold):
+
+        im = ax.pcolor(ma.masked_where(mask, x0), ma.masked_where(mask, x1), ma.masked_where(mask, z), vmin=z.min(),vmax=z.max(), transform=ax.projection, cmap=cmap)
+#        im = ax.contourf(ma.masked_where(mask, x0), ma.masked_where(mask, x1), ma.masked_where(mask, z[0,:,:].values), vmin=z.min(),vmax=z.max(), transform=ax.projection, cmap=cmap)
+    cb = plt.colorbar(im, orientation="horizontal", extend='both', label='sst [K]')
+
+    if projection == 'platecarree':
+
+        ax.set_extent([-180, 180, -90, 90], crs=p)
+        gl = ax.gridlines(crs=p, draw_labels=True, linewidth=1, color='gr\
+ay', alpha=0.5, linestyle='-')
+        gl.xlabels_top = False
+        gl.ylabels_right = False
+        gl.xlines = True
+        gl.ylines = True
+        gl.xlocator = mticker.FixedLocator([-180,-120,-60,0,60,120,180])
+        gl.ylocator = mticker.FixedLocator([-90,-60,-30,0,30,60,90])
+        gl.xformatter = LONGITUDE_FORMATTER
+        gl.yformatter = LATITUDE_FORMATTER
+
+    plt.title(titlestr)
+    plt.savefig(filestr)
 
 def plot_ensemble_deltas(ds, ensemble, sensor, nens):
     '''
