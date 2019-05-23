@@ -621,17 +621,33 @@ if __name__ == "__main__":
 
     if flag_plot:
 
+        plot_bestcase_parameters(ds, sensor)
+        plot_bestcase_covariance(ds)
+        plot_population_coefficients(ds, draws, sensor, npop)
+        plot_population_histograms(ds, draws, sensor, nens)
+        plot_population_cdf(ds, draws, sensor, nens, npop)
+        plot_ensemble_deltas(ds, ensemble, sensor, nens)
+        plot_ensemble_check(ds, ensemble)
+
+        #
+        # Plot L and BT delta timeseriess at scan center
+        #
+
         scan_middle = int(len(fcdr.nx)/2)
-#        t = fcdr.time
-        lat = fcdr.latitude
-        lon = fcdr.longitude
         plot_L_deltas(L[:,scan_middle], L_delta[:,scan_middle,:], nens, nch)
         plot_BT_deltas(BT[:,scan_middle], BT_delta[:,scan_middle,:], nens, nch)
 
-        projection = 'platecarree'
-        # projection = 'mollweide'
+        #
+        # Plot orbital L and BT deltas (full scan)
+        #
+
+        lat = fcdr.latitude
+        lon = fcdr.longitude
+        # projection = 'platecarree'
+        projection = 'mollweide'
         # projection = 'robinson'
         for i in range(nens):
+
             filestr_L = "plot_orbit_L_delta_" + str(i) + ".png"
             filestr_BT = "plot_orbit_BT_delta_" + str(i) + ".png"
             titlestr_L = "L_delta: ensemble member=" + str(i)
@@ -639,13 +655,5 @@ if __name__ == "__main__":
             plot_orbit_var(lat, lon, L_delta[:,:,i], projection, filestr_L, titlestr_L)
             plot_orbit_var(lat, lon, BT_delta[:,:,i], projection, filestr_BT, titlestr_BT)
             
-#        plot_ensemble_check(ds, ensemble)
-#        plot_ensemble_deltas(ds, ensemble, sensor, nens)
-#        plot_bestcase_parameters(ds, sensor)
-#        plot_bestcase_covariance(ds)
-#        plot_population_coefficients(ds, draws, sensor, npop)
-#        plot_population_histograms(ds, draws, sensor, nens)
-#        plot_population_cdf(ds, draws, sensor, nens, npop)
-
 
 
