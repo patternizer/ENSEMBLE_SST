@@ -6,8 +6,8 @@
 # NB: include code: plot_ensemble.py
 
 # =======================================
-# Version 0.16
-# 23 May, 2019
+# Version 0.17
+# 24 May, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -71,6 +71,13 @@ def calc_eigen(X):
     '''
     eigenval, eigenvec = np.linalg.eig(X)
     return eigenval, eigenvec
+
+def calc_svd(X):
+    '''
+    Calculate singular value decomposition of  the covariance (or correlation) matrix X
+    '''
+    U, S, V = np.linalg.svd(X, full_matrices=True)
+    return U, S, V
 
 # =======================================    
 
@@ -137,12 +144,6 @@ def calc_draws(ds, npop):
     # draws : ndarray : drawn samples, of shape size, if that was provided (if not, the shape is (N,) i.e. each entry out[i,j,...,:] is an N-dimensional value drawn from the distribution)
     # Given a shape of, for example, (m,n,k), m*n*k samples are generated, and packed in an m x n x k arrangement. 
     # Because each sample is N-dimensional, the output shape is (m,n,k,N). If no shape is specified, a single (N-D) sample is returned.
-
-    # 
-    # Fast save of draws array
-    #
-
-    np_save('draws.npy', draws, allow_pickle=False)
 
     return draws
 
@@ -251,7 +252,7 @@ def calc_ensemble(ds, draws, sensor, nens, npop):
 
     return ensemble, ensemble_idx
 
-def calc_radiance_ensemble(ds, ensemble, isensor, nens, nch, fcdr):
+def calc_L_ensemble(ds, ensemble, isensor, nens, nch, fcdr):
     '''
     Calculate radiance ensemble for sensor orbit channel data
     Aim: use channel-dependent measurement equations to determine how many PCs are needed to 
@@ -283,7 +284,6 @@ def calc_radiance_ensemble(ds, ensemble, isensor, nens, nch, fcdr):
     T_inst = fcdr.prt              
 
     e_ict = 0.985140
-#    scan_middle = int(len(ni)/2)
 
     gd_cold_pixel_37 = C_e_37 == C_e_37.min()
     gd_warm_pixel_37 = C_e_37 == C_e_37.max()
@@ -324,7 +324,6 @@ def calc_radiance_ensemble(ds, ensemble, isensor, nens, nch, fcdr):
 
         C_ict = C_ict_37
         C_s = C_s_37
-#        C_e = C_e_37[:,scan_middle]
         C_e = C_e_37
         L_ict = L_ict_37
 
@@ -357,7 +356,6 @@ def calc_radiance_ensemble(ds, ensemble, isensor, nens, nch, fcdr):
 
         C_ict = C_ict_11
         C_s = C_s_11
-#        C_e = C_e_11[:,scan_middle]
         C_e = C_e_11
         L_ict = L_ict_11
 
@@ -388,7 +386,6 @@ def calc_radiance_ensemble(ds, ensemble, isensor, nens, nch, fcdr):
 
         C_ict = C_ict_12
         C_s = C_s_12
-#        C_e = C_e_12[:,scan_middle]
         C_e = C_e_12
         L_ict = L_ict_12
 
@@ -417,7 +414,7 @@ def calc_radiance_ensemble(ds, ensemble, isensor, nens, nch, fcdr):
 
     return L, L_delta
 
-def convert_L_BT(L, L_delta, nch, lut):
+def calc_BT_ensemble(L, L_delta, nch, lut):
     '''
     Look-up tables to convert radiance from the Measurement Equation to brightness temperature (BT) and vice-versa
     '''
@@ -440,18 +437,123 @@ def calc_pca(ds, draws, nens):
     '''
     Apply PCA to the draw matrix
     '''
+    
+    Y_ave = ds.parameter
+    Y_cov = ds.parameter_covariance_matrix
+    Z = np.array(ds.parameter_covariance_matrix)
+    eigenval_Z, eigenvec_Z = calc_eigen(Z)
 
-    npar = len(ds.parameter)
-    X = draws
-    X_ave = np.mean(X, axis=0)
-    X_std = np.std(X, axis=0)
+    ndraws = 36 * 2**np.arange(10, dtype = np.uint64)[::1]
+    S_val = np.empty(shape=(len(Y_ave), len(ndraws)))
+    ensemble = np.empty(shape=(nens,len(Y_ave)))
+    ensemble_idx = np.empty(shape=(nens,len(Y_ave)))
+
+    fig = plt.figure()
+    for i in range(len(ndraws)):
+        
+        size = ndraws[i]
+        draws = np.random.multivariate_normal(Y_ave, Y_cov, size)
+        U, S, V = calc_svd(draws - draws.mean(axis=0))
+        
+        S_val[:,i] = S**2 / sum(S**2)
+        label_str = 'SVD: n(draws)=' + str(ndraws[i])
+        plt.plot(range(1,len(Y_ave)+1), 100 * S_val[:,i], linewidth=1.0, label=label_str)
+
+    plt.plot(range(1,len(Y_ave)+1), 100 * eigenval_Z / sum(eigenval_Z), 'k.', linestyle='--', linewidth=0.5, label='Eigenvalue decompositition of cov(H)')
+    plt.xticks(range(1,len(Y_ave)+1))
+    plt.xlim([0.9,20.1])
+    plt.legend(fontsize=8, ncol=1)
+    plt.xlabel('Number of PCs')
+    plt.ylabel('Relative variance explained: EVD(H) versus SVD(draws) [%]')
+    file_str = 'pca_svd_versus_evd1.png'
+    plt.savefig(file_str)
+    plt.close()
+
+    fig = plt.figure()
+    for i in range(len(ndraws)):
+
+        label_str = 'SVD: n(draws)=' + str(ndraws[i])
+        plt.plot(range(1,len(Y_ave)+1), 100 * eigenval_Z / sum(eigenval_Z) - 100 * S_val[:,i], linewidth=1.0, label=label_str)
+
+    plt.xticks(range(1,len(Y_ave)+1))
+    plt.xlim([0.9,20.1])
+    plt.legend(fontsize=8, ncol=1)
+    plt.xlabel('Number of PCs')
+    plt.ylabel('Relative variance explained: EVD(H) - SVD(draws) [%] ')
+    file_str = 'pca_svd_versus_evd2.png'
+    plt.savefig(file_str)
+    plt.close()
+
+    n_PC = 10
+
+    #
+    # SVD reconstruction
+    #
+
+    U, S, V = calc_svd(Z)
+    Z_SVD = np.dot(U[:, :n_PC] * S[:n_PC], V[:n_PC, :])
+
+    #
+    # PCA reconstruction
+    #
+
+    pca = PCA().fit(Z)
+    Z_PCA = np.dot(pca.transform(Z)[:,:n_PC], pca.components_[:n_PC,:]) + pca.mean_
+
+    return ensemble, ensemble_idx
+    
+def DEV_calc_pca(ds, draws, nens):
 
     pca = PCA().fit(X)
     pca_var = np.cumsum(pca.explained_variance_ratio_) * 100.0
 
-#    idx = np.where(pca_var > 0.99)
-#    idx = 10-1
     idx = len(pca_var)-1
+    # idx = np.where(pca_var > 0.99)
+    # n_PC = idx[0][0]
+    n_PC = idx
+
+    for n_PC in range(1,len(pca_var)):
+        
+        Xhat = np.dot(pca.transform(X)[:,:n_PC], pca.components_[:n_PC,:])
+        Xhat += X_ave
+        # NB: if X is a correlation matrix we must first multiply by X_std then add X_ave
+
+        # ensemble(11,36)
+
+        cov_par = ds.parameter_covariance_matrix
+        cov_ensemble = np.cov(ensemble, rowvar=False)
+        cov_diff = cov_par - cov_ensemble
+
+        corr_par = ds.parameter_correlation_matrix
+        corr_ensemble = np.corrcoef(ensemble, rowvar=False)
+        corr_diff = corr_par - corr_ensemble
+
+        cov_par_eigenval, cov_par_eigenvec = calc_eigen(cov_par)
+        cov_ensemble_eigenval, cov_ensemble_eigenvec = calc_eigen(cov_ensemble)
+
+        corr_par_eigenval, corr_par_eigenvec = calc_eigen(corr_par)
+        corr_ensemble_eigenval, corr_ensemble_eigenvec = calc_eigen(corr_ensemble)
+
+        isensor = 0
+        fcdr = xarray.open_dataset("avhrr_fcdr_full.nc", decode_times=False) 
+        lut = xarray.open_dataset("FIDUCEO_FCDR_L1C_AVHRR_MTAC3A_20110619225807_20110620005518_EASY_v0.2Bet_fv2.0.0.nc")
+#        lut = xarray.open_dataset("FIDUCEO_FCDR_L1C_AVHRR_MTAC3B_20110619231357_20110620013100_EASY_v0.2Bet_fv2.0.0.nc")
+
+        #
+        # Calculate L ensemble to BT ensemble
+        # 
+
+        L, L_delta = calc_L_ensemble(ds, ensemble, isensor, nens, nch, fcdr)
+
+        # Calc radiance of best-case 
+        # Calc radiance of Xhat
+        # Calc BT of best-case
+        # Calc BT of Xhat
+        # Cal BT diff
+        # if BT diff < 0.001K output n_PC; stop
+
+    # Sample eigenvectors --> 10-member ensemble
+    # export ensemble
 
     fig = plt.figure()
     plt.plot(range(1,len(pca_var)+1), pca_var, marker='o', linestyle='-', color='r')
@@ -464,35 +566,6 @@ def calc_pca(ds, draws, nens):
     plt.title(title_str)
     plt.savefig(file_str)
     plt.close()
-
-    #
-    # Preserve 90% of the variance with PCA
-    #
-
-    # n_PC = pca.n_components_
-    # n_PC = idx[0][0]
-    n_PC = idx
-
-    # PC = pca.transform(X)
-    # Xhat = pca.inverse_transform(PC)
-
-    Xhat = np.dot(pca.transform(X)[:,:n_PC], pca.components_[:n_PC,:])
-    Xhat += X_ave
-    
-    # NB: if X is a correlation matrix we must first multiply by X_std then add X_ave
-
-    for i in range(0,npar):
-
-        fig = plt.figure()
-        plt.plot(X[:,i],'blue')
-        plt.plot(Xhat[:,i],'red')
-        plt.xlabel('Draw')
-        plt.ylabel('Parameter value')
-        title_str = 'Harmonisation parameter: ' + str(i+1)
-        file_str = 'pca_fit' + str(i+1) + '.png'
-        plt.title(title_str)
-        plt.savefig(file_str)
-        plt.close()
 
 # =======================================    
 # INCLUDE PLOT CODE:
@@ -527,11 +600,11 @@ if __name__ == "__main__":
     #
 
     flag_load_draws = 1
-    flag_load_ensemble = 1
-    flag_pca = 0
+    flag_load_ensemble = 0
+    flag_pca = 1
     flag_sensor = 0
-    flag_orbit = 1
-    flag_plot = 1
+    flag_orbit = 0
+    flag_plot = 0
 
     #
     # Load harmonisation file
@@ -576,8 +649,8 @@ if __name__ == "__main__":
         6) Ensemble generation code will read in ensemble output file provided here
         '''
 
-        np_save(filestr_ensemble, ensemble, allow_pickle=False)
-        np_save(filestr_ensemble_idx, ensemble_idx, allow_pickle=False)
+#        np_save(filestr_ensemble, ensemble, allow_pickle=False)
+#        np_save(filestr_ensemble_idx, ensemble_idx, allow_pickle=False)
 
     #
     # Load L1B orbit counts data and radiance / BT look-up table
@@ -593,22 +666,20 @@ if __name__ == "__main__":
 #        lut = xarray.open_dataset("FIDUCEO_FCDR_L1C_AVHRR_MTAC3B_20110619231357_20110620013100_EASY_v0.2Bet_fv2.0.0.nc")
 
         #
-        # Calculate radiance ensemble to BT ensemble
+        # Calculate L ensemble to BT ensemble
         # 
 
-        L, L_delta = calc_radiance_ensemble(ds, ensemble, isensor, nens, nch, fcdr)
+        L, L_delta = calc_L_ensemble(ds, ensemble, isensor, nens, nch, fcdr)
 
         #
         # Calculate BT ensemble
         # 
 
-        BT, BT_delta = convert_L_BT(L, L_delta, nch, lut)
+        BT, BT_delta = calc_BT_ensemble(L, L_delta, nch, lut)
 
-    #
-    # Save orbital L and BT ensembles:
-    #
-
-    if flag_orbit == 1:
+        #
+        # Save orbital L and BT ensembles:
+        #
 
         filestr_L_ensemble = "L_ensemble_" + str(nch) + "_" + str(npop) + ".npy"
         filestr_BT_ensemble = "BT_ensemble_" + str(nch) + "_" + str(npop) + ".npy"
@@ -637,23 +708,27 @@ if __name__ == "__main__":
         plot_L_deltas(L[:,scan_middle], L_delta[:,scan_middle,:], nens, nch)
         plot_BT_deltas(BT[:,scan_middle], BT_delta[:,scan_middle,:], nens, nch)
 
-        #
-        # Plot orbital L and BT deltas (full scan)
-        #
+        if flag_orbit == 1:
 
-        lat = fcdr.latitude
-        lon = fcdr.longitude
-        # projection = 'platecarree'
-        projection = 'mollweide'
-        # projection = 'robinson'
-        for i in range(nens):
+            #
+            # Plot orbital L and BT deltas (full scan)
+            #
 
-            filestr_L = "plot_orbit_L_delta_" + str(i) + ".png"
-            filestr_BT = "plot_orbit_BT_delta_" + str(i) + ".png"
-            titlestr_L = "L_delta: ensemble member=" + str(i)
-            titlestr_BT = "BT_delta: ensemble member=" + str(i)
-            plot_orbit_var(lat, lon, L_delta[:,:,i], projection, filestr_L, titlestr_L)
-            plot_orbit_var(lat, lon, BT_delta[:,:,i], projection, filestr_BT, titlestr_BT)
+            lat = fcdr.latitude
+            lon = fcdr.longitude
+            # projection = 'platecarree'
+            projection = 'mollweide'
+            # projection = 'robinson'
+            for i in range(nens):
+
+                filestr_L = "plot_orbit_L_delta_" + str(i) + ".png"
+                filestr_BT = "plot_orbit_BT_delta_" + str(i) + ".png"
+                titlestr_L = "L_delta: ensemble member=" + str(i)
+                titlestr_BT = "BT_delta: ensemble member=" + str(i)
+                plot_orbit_var(lat, lon, L_delta[:,:,i], projection, filestr_L, titlestr_L)
+                plot_orbit_var(lat, lon, BT_delta[:,:,i], projection, filestr_BT, titlestr_BT)
             
+
+
 
 

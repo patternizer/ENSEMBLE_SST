@@ -245,7 +245,7 @@ def plot_L_deltas(L, L_delta, nens, nch):
     plt.legend(fontsize=10, ncol=1)
     ax.set_ylabel('Radiance difference', fontsize=12)
     plt.tight_layout()
-    file_str = "radiance_ensemble_" + str(nch) + ".png"
+    file_str = "L_ensemble_" + str(nch) + ".png"
     plt.savefig(file_str)
     plt.close('all')
 
@@ -258,9 +258,9 @@ def plot_BT_deltas(BT, BT_delta, nens, nch):
         plt.plot(BT - BT_delta[:,k], linewidth=1.0, label=label_str)
 
     plt.legend(fontsize=10, ncol=1)
-    ax.set_ylabel('BT difference', fontsize=12)
+    ax.set_ylabel('BT difference / K', fontsize=12)
     plt.tight_layout()
-    file_str = "bt_ensemble_" + str(nch) + ".png"
+    file_str = "BT_ensemble_" + str(nch) + ".png"
     plt.savefig(file_str)
     plt.close('all')
 
