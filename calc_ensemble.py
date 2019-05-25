@@ -69,6 +69,7 @@ def calc_eigen(X):
     '''
     Calculate eigenvalues and eigenvectors from the covariance (or correlation) matrix X
     '''
+    X = np.matrix(X)
     eigenval, eigenvec = np.linalg.eig(X)
     return eigenval, eigenvec
 
@@ -76,6 +77,7 @@ def calc_svd(X):
     '''
     Calculate singular value decomposition of  the covariance (or correlation) matrix X
     '''
+    X = np.matrix(X)
     U, S, V = np.linalg.svd(X, full_matrices=True)
     return U, S, V
 
@@ -147,7 +149,7 @@ def calc_draws(ds, npop):
 
     return draws
 
-def calc_ensemble(ds, draws, sensor, nens, npop):
+def calc_ensemble_draws(ds, draws, sensor, nens, npop):
     '''
     Extract (decile) ensemble members
     '''
@@ -435,27 +437,49 @@ def calc_BT_ensemble(L, L_delta, nch, lut):
         
 def calc_pca(ds, draws, nens):
     '''
-    Apply PCA to the draw matrix
+    Compare eigenvalue decomposition (EVD) of the Harmonisation covariance matrix with
+    singular value decomposition (SVD) of the draw matrix of varying size.
     '''
+
+    #----------------------------------------------------------------------------
+    # PCA
+    #----------------------------------------------------------------------------
+    # z1 = l11 * x1 + l12 * x2 + l13 * x3 + ... + l1p * xp --> this is the 1st PC
+    # z2 = l21 * x1 + l22 * x2 + l23 * x3 + ... + l2p * xp
+    # z3 = l31 * x1 + l32 * x2 + l33 * x3 + ... + l3p * xp
+    # ...
+    # zm = lm1 * x1 + lm2 * x2 + lm3 * x3 + ... + lmp * xp
+    #----------------------------------------------------------------------------
+    # li1^2 + li2^2 + li3^2 + ... lip^2 = 1 --> this is the 1st eigenvector
+    #----------------------------------------------------------------------------
+    
+    #
+    # EVD of Harmonisation covariance matrix (H = Y_cov)
+    #
     
     Y_ave = ds.parameter
     Y_cov = ds.parameter_covariance_matrix
     Z = np.array(ds.parameter_covariance_matrix)
     eigenval_Z, eigenvec_Z = calc_eigen(Z)
 
-    ndraws = 36 * 2**np.arange(10, dtype = np.uint64)[::1]
+    #
+    # Range of draw population sizes: len(parameter) * 2^n; n=0:10
+    #
+
+    ndraws = len(ds.parameter) * 2**np.arange(10, dtype = np.uint64)[::1]
+
+    # Plot relative variance explained [%) for EVD versus SVD (draws)
+
     S_val = np.empty(shape=(len(Y_ave), len(ndraws)))
-    ensemble = np.empty(shape=(nens,len(Y_ave)))
-    ensemble_idx = np.empty(shape=(nens,len(Y_ave)))
 
     fig = plt.figure()
     for i in range(len(ndraws)):
         
         size = ndraws[i]
         draws = np.random.multivariate_normal(Y_ave, Y_cov, size)
-        U, S, V = calc_svd(draws - draws.mean(axis=0))
-        
+        U, S, V = calc_svd(draws - draws.mean(axis=0))        
         S_val[:,i] = S**2 / sum(S**2)
+
         label_str = 'SVD: n(draws)=' + str(ndraws[i])
         plt.plot(range(1,len(Y_ave)+1), 100 * S_val[:,i], linewidth=1.0, label=label_str)
 
@@ -484,6 +508,18 @@ def calc_pca(ds, draws, nens):
     plt.savefig(file_str)
     plt.close()
 
+    ensemble = np.empty(shape=(nens,len(Y_ave)))
+    ensemble_idx = np.empty(shape=(nens,len(Y_ave)))
+    return ensemble, ensemble_idx
+
+def calc_ensemble_pca(ds, draws, nens):
+    '''
+    Apply PCA to the draw matrix
+    '''
+
+    ensemble = np.empty(shape=(nens,len(Y_ave)))
+    ensemble_idx = np.empty(shape=(nens,len(Y_ave)))
+
     n_PC = 10
 
     #
@@ -500,72 +536,36 @@ def calc_pca(ds, draws, nens):
     pca = PCA().fit(Z)
     Z_PCA = np.dot(pca.transform(Z)[:,:n_PC], pca.components_[:n_PC,:]) + pca.mean_
 
-    return ensemble, ensemble_idx
-    
-def DEV_calc_pca(ds, draws, nens):
+    # NB: if X is a correlation matrix we must first multiply by std then add mean
 
-    pca = PCA().fit(X)
-    pca_var = np.cumsum(pca.explained_variance_ratio_) * 100.0
+    # pca_cumvar = np.cumsum(pca.explained_variance_ratio_) * 100.0
 
-    idx = len(pca_var)-1
-    # idx = np.where(pca_var > 0.99)
-    # n_PC = idx[0][0]
-    n_PC = idx
+    # ensemble(11,36)
 
-    for n_PC in range(1,len(pca_var)):
-        
-        Xhat = np.dot(pca.transform(X)[:,:n_PC], pca.components_[:n_PC,:])
-        Xhat += X_ave
-        # NB: if X is a correlation matrix we must first multiply by X_std then add X_ave
+    isensor = 0
+    fcdr = xarray.open_dataset("avhrr_fcdr_full.nc", decode_times=False) 
+    lut = xarray.open_dataset("FIDUCEO_FCDR_L1C_AVHRR_MTAC3A_20110619225807_20110620005518_EASY_v0.2Bet_fv2.0.0.nc")
 
-        # ensemble(11,36)
+    L, L_delta = calc_L_ensemble(ds, ensemble, isensor, nens, nch, fcdr)
+    BT, BT_delta = calc_BT_ensemble(L, L_delta, nch, lut)
 
-        cov_par = ds.parameter_covariance_matrix
-        cov_ensemble = np.cov(ensemble, rowvar=False)
-        cov_diff = cov_par - cov_ensemble
-
-        corr_par = ds.parameter_correlation_matrix
-        corr_ensemble = np.corrcoef(ensemble, rowvar=False)
-        corr_diff = corr_par - corr_ensemble
-
-        cov_par_eigenval, cov_par_eigenvec = calc_eigen(cov_par)
-        cov_ensemble_eigenval, cov_ensemble_eigenvec = calc_eigen(cov_ensemble)
-
-        corr_par_eigenval, corr_par_eigenvec = calc_eigen(corr_par)
-        corr_ensemble_eigenval, corr_ensemble_eigenvec = calc_eigen(corr_ensemble)
-
-        isensor = 0
-        fcdr = xarray.open_dataset("avhrr_fcdr_full.nc", decode_times=False) 
-        lut = xarray.open_dataset("FIDUCEO_FCDR_L1C_AVHRR_MTAC3A_20110619225807_20110620005518_EASY_v0.2Bet_fv2.0.0.nc")
-#        lut = xarray.open_dataset("FIDUCEO_FCDR_L1C_AVHRR_MTAC3B_20110619231357_20110620013100_EASY_v0.2Bet_fv2.0.0.nc")
-
-        #
-        # Calculate L ensemble to BT ensemble
-        # 
-
-        L, L_delta = calc_L_ensemble(ds, ensemble, isensor, nens, nch, fcdr)
-
-        # Calc radiance of best-case 
-        # Calc radiance of Xhat
-        # Calc BT of best-case
-        # Calc BT of Xhat
-        # Cal BT diff
-        # if BT diff < 0.001K output n_PC; stop
-
+    # Calc radiance of best-case 
+    # Calc radiance of Xhat
+    # Calc BT of best-case
+    # Calc BT of Xhat
+    # Cal BT diff
+    # if BT diff < 0.001K output n_PC; stop
     # Sample eigenvectors --> 10-member ensemble
     # export ensemble
 
-    fig = plt.figure()
-    plt.plot(range(1,len(pca_var)+1), pca_var, marker='o', linestyle='-', color='r')
-    plt.scatter(idx, pca_var[idx])
-    plt.xticks(range(1,len(pca_var)+1))
-    plt.xlabel('Number of PCs')
-    plt.ylabel('Cumulative explained variance (%)')
-    title_str = str(idx+1) + ' PCs account for ' + "{0:.5f}".format(pca_var[idx]) + '% of the variance'
-    file_str = 'pca_variance.png'
-    plt.title(title_str)
-    plt.savefig(file_str)
-    plt.close()
+    cov_par = ds.parameter_covariance_matrix
+    cov_ensemble = np.cov(ensemble, rowvar=False)
+    cov_diff = cov_par - cov_ensemble
+    corr_par = ds.parameter_correlation_matrix
+    corr_ensemble = np.corrcoef(ensemble, rowvar=False)
+    corr_diff = corr_par - corr_ensemble
+
+    return ensemble, ensemble_idx
 
 # =======================================    
 # INCLUDE PLOT CODE:
@@ -636,8 +636,9 @@ if __name__ == "__main__":
     else:
         if flag_pca:
             ensemble, ensemble_idx = calc_pca(ds, draws, nens)
+#            ensemble, ensemble_idx = calc_ensemble_pca(ds, draws, nens)
         else:
-            ensemble, ensemble_idx = calc_ensemble(ds, draws, sensor, nens, npop)
+            ensemble, ensemble_idx = calc_ensemble_draws(ds, draws, sensor, nens, npop)
  
         '''
         Export ensemble in format needed for FCDR delta creation algorithm in FCDR generation code:
