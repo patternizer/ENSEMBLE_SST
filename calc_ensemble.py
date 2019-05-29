@@ -6,8 +6,8 @@
 # NB: include code: plot_ensemble.py
 
 # =======================================
-# Version 0.17
-# 24 May, 2019
+# Version 0.20
+# 29 May, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -485,7 +485,7 @@ def calc_pca(ds, draws, nens):
 
     plt.plot(range(1,len(Y_ave)+1), 100 * eigenval_Z / sum(eigenval_Z), 'k.', linestyle='--', linewidth=0.5, label='Eigenvalue decompositition of cov(H)')
     plt.xticks(range(1,len(Y_ave)+1))
-    plt.xlim([0.9,20.1])
+    plt.xlim([0.5,20.5])
     plt.legend(fontsize=8, ncol=1)
     plt.xlabel('Number of PCs')
     plt.ylabel('Relative variance explained: EVD(H) versus SVD(draws) [%]')
@@ -500,7 +500,7 @@ def calc_pca(ds, draws, nens):
         plt.plot(range(1,len(Y_ave)+1), 100 * eigenval_Z / sum(eigenval_Z) - 100 * S_val[:,i], linewidth=1.0, label=label_str)
 
     plt.xticks(range(1,len(Y_ave)+1))
-    plt.xlim([0.9,20.1])
+    plt.xlim([0.5,20.5])
     plt.legend(fontsize=8, ncol=1)
     plt.xlabel('Number of PCs')
     plt.ylabel('Relative variance explained: EVD(H) - SVD(draws) [%] ')
@@ -517,10 +517,27 @@ def calc_ensemble_pca(ds, draws, nens):
     Apply PCA to the draw matrix
     '''
 
-    ensemble = np.empty(shape=(nens,len(Y_ave)))
-    ensemble_idx = np.empty(shape=(nens,len(Y_ave)))
+    U = np.diag(ds.parameter_uncertainty)
+    R = np.array(ds.parameter_correlation_matrix) 
+#   X = np.matmul(np.matmul(U,R),U)
+    X = np.array(ds.parameter_covariance_matrix)
+    Y = np.array(ds.parameter)
+    Z = draws
 
-    n_PC = 10
+    nparameter = len(Y)
+
+    ensemble = np.empty(shape=(nens, nparameter))
+    ensemble_idx = np.empty(shape=(nens, nparameter))
+
+    n_PC = nparameter
+
+    #
+    # EVD decomposition
+    #
+
+    eigen_val, eigen_vec = calc_eigen(X)
+    S = np.diag(np.sqrt(eigen_val))
+    T = np.matmul(eigen_vec, S)
 
     #
     # SVD reconstruction
@@ -534,7 +551,19 @@ def calc_ensemble_pca(ds, draws, nens):
     #
 
     pca = PCA().fit(Z)
-    Z_PCA = np.dot(pca.transform(Z)[:,:n_PC], pca.components_[:n_PC,:]) + pca.mean_
+    Z_PCA = np.dot(pca.transform(Z)[:,:n_PC], pca.components_[:n_PC,:]) + pca.mean_[:n_PC]
+
+    A = pca.transform(Z)[:,:n_PC]
+    x = pca.components_[:n_PC,:]
+
+    ############################
+    # TEST:
+    # 1) set Z=draws
+    # 2) set n_PC = 1
+    # 3) take 10 draws of Z_PCA
+    # 4) repeat for other PC axes
+    # 5) reconstruct ensemble
+    ############################
 
     # NB: if X is a correlation matrix we must first multiply by std then add mean
 
@@ -579,16 +608,16 @@ exec(open('plot_ensemble.py').read())
 if __name__ == "__main__":
 
     #--------------------------------------------------
-#    parser = OptionParser("usage: %prog nch npop nens")
-#    (options, args) = parser.parse_args()
+    # parser = OptionParser("usage: %prog nch npop nens")
+    # (options, args) = parser.parse_args()
 
-#    nch = args[0]
-#    npop = args[1]
-#    nens = args[2]
+    # nch = args[0]
+    # npop = args[1]
+    # nens = args[2]
 
     nch = 37
-#    nch = 11
-#    nch = 12
+    # nch = 11
+    # nch = 12
     npop = 1000000
     nens = 11
     #--------------------------------------------------
@@ -635,8 +664,8 @@ if __name__ == "__main__":
         ensemble_idx = np_load(filestr_ensemble_idx)
     else:
         if flag_pca:
-            ensemble, ensemble_idx = calc_pca(ds, draws, nens)
-#            ensemble, ensemble_idx = calc_ensemble_pca(ds, draws, nens)
+#            ensemble, ensemble_idx = calc_pca(ds, draws, nens)
+            ensemble, ensemble_idx = calc_ensemble_pca(ds, draws, nens)
         else:
             ensemble, ensemble_idx = calc_ensemble_draws(ds, draws, sensor, nens, npop)
  
