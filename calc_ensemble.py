@@ -508,20 +508,19 @@ def calc_pca(ds, draws, nens):
     plt.savefig(file_str)
     plt.close()
 
-    ensemble = np.empty(shape=(nens,len(Y_ave)))
-    ensemble_idx = np.empty(shape=(nens,len(Y_ave)))
-    return ensemble, ensemble_idx
-
 def calc_ensemble_pca(ds, draws, nens):
     '''
     Apply PCA to the draw matrix
     '''
 
-    U = np.diag(ds.parameter_uncertainty)
+#    U = np.diag(ds.parameter_uncertainty)
+    U = np.array(ds.parameter_uncertainty)
     R = np.array(ds.parameter_correlation_matrix) 
-#   X = np.matmul(np.matmul(U,R),U)
-    X = np.array(ds.parameter_covariance_matrix)
+#   C = np.matmul(np.matmul(U,R),U)
+    C = np.array(ds.parameter_covariance_matrix)
     Y = np.array(ds.parameter)
+
+    X = R
     Z = draws
 
     nparameter = len(Y)
@@ -536,25 +535,77 @@ def calc_ensemble_pca(ds, draws, nens):
     #
 
     eigen_val, eigen_vec = calc_eigen(X)
-    S = np.diag(np.sqrt(eigen_val))
-    T = np.matmul(eigen_vec, S)
+    L = eigen_val
+    V = eigen_vec
+    S = np.diag(np.sqrt(L))
+    T = np.matmul(V, R)
 
     #
     # SVD reconstruction
     #
 
-    U, S, V = calc_svd(Z)
-    Z_SVD = np.dot(U[:, :n_PC] * S[:n_PC], V[:n_PC, :])
+    svd_U, svd_S, svd_V = calc_svd(X)
+    Z_SVD = np.matmul(np.matmul(svd_U[:, :n_PC], np.diag(svd_S[:n_PC])),svd_V[:n_PC, :])
+
+    for n_PC in range(1,nparameter+1):
+
+        Z_SVD = np.matmul(np.matmul(svd_U[:, :n_PC], np.diag(svd_S[:n_PC])),svd_V[:n_PC, :])
+#        fig, ax = plt.subplots()
+#        vmin, vmax = -1.0, 1.0
+#        sns.heatmap(Z_SVD, center=(vmin+vmax)/2.0, vmin=vmin, vmax=vmax)
+#        titlestr = 'X (SVD): n_PC = ' + str(n_PC)
+#        filestr = 'SVD_X_n_PC_' + str(n_PC) + '.png'
+#        plt.title(titlestr)
+#        plt.savefig(filestr)
+#        plt.close()
+
+#        fig, ax = plt.subplots()
+#        vmin, vmax = -1.0, 1.0
+#        sns.heatmap( X - Z_SVD, center=(vmin+vmax)/2.0, vmin=vmin, vmax=vmax)
+#        titlestr = 'dX (SVD): n_PC = ' + str(n_PC)
+#        filestr = 'SVD_dX_n_PC_' + str(n_PC) + '.png'
+#        plt.title(titlestr)
+#        plt.savefig(filestr)
+#        plt.close()
 
     #
     # PCA reconstruction
     #
 
-    pca = PCA().fit(Z)
-    Z_PCA = np.dot(pca.transform(Z)[:,:n_PC], pca.components_[:n_PC,:]) + pca.mean_[:n_PC]
+    X = Z
+    pca = PCA().fit(X)
+#    Z_PCA = np.dot(pca.transform(X)[:,:n_PC], pca.components_[:n_PC,:]) + pca.mean_[:n_PC]
+#    Z_PCA = np.matmul(pca.transform(X)[:,:n_PC], pca.components_[:n_PC,:]) + pca.mean_[:n_PC]
 
-    A = pca.transform(Z)[:,:n_PC]
-    x = pca.components_[:n_PC,:]
+    fig, ax = plt.subplots()
+    for n_PC in range(1,nparameter+1):
+
+        Z_PCA = []
+        Z_PCA = np.matmul(pca.transform(X)[:,:n_PC], pca.components_[:n_PC,:]) + pca.mean_
+        labelstr = 'n_PC=' + str(n_PC)
+        plt.plot( ((Y - Z_PCA.mean(axis=0))/Y), label=labelstr)
+
+    plt.legend(fontsize=8, ncol=2)
+    titlestr = 'parameter delta, dY(n_PC)'
+    filestr = 'PCA_dY_n_PC.png'
+    plt.title(titlestr)
+    plt.savefig(filestr)
+    plt.close()
+
+    fig, ax = plt.subplots()
+    for n_PC in range(1,nparameter+1):
+
+        Z_PCA = []
+        Z_PCA = np.matmul(pca.transform(X)[:,:n_PC], pca.components_[:n_PC,:]) + pca.mean_
+        labelstr = 'n_PC=' + str(n_PC)
+        plt.plot( ((U - Z_PCA.std(axis=0))/U), label=labelstr)
+
+    plt.legend(fontsize=8, ncol=2)
+    titlestr = 'uncertainty delta, dU(n_PC)'
+    filestr = 'PCA_dU_n_PC.png'
+    plt.title(titlestr)
+    plt.savefig(filestr)
+    plt.close()
 
     ############################
     # TEST:
@@ -664,7 +715,7 @@ if __name__ == "__main__":
         ensemble_idx = np_load(filestr_ensemble_idx)
     else:
         if flag_pca:
-#            ensemble, ensemble_idx = calc_pca(ds, draws, nens)
+#            calc_pca(ds, draws, nens)
             ensemble, ensemble_idx = calc_ensemble_pca(ds, draws, nens)
         else:
             ensemble, ensemble_idx = calc_ensemble_draws(ds, draws, sensor, nens, npop)
