@@ -143,6 +143,7 @@ def generate_10(n):
 if __name__ == "__main__":
 
     ch = 37
+
     # OLD run:  (this one): software_tag=3e8c463 / job dir=job_avhxx_v6_EIV_10x_11
     # NEW run:            : software_tag=4d111a1 / job_dir=job_avhxx_v6_EIV_10x_11
 
@@ -159,7 +160,6 @@ if __name__ == "__main__":
     # drwxr-x--- 1 rquast users     0 Jun 10 09:34 3.0-becb532
     # drwxr-x--- 1 rquast users     0 Jan 18 08:33 3.0-d4d8604
     # drwxr-x--- 1 rquast users     0 Jun 17 08:03 3.0-de3f5de
-    # -rw-r----- 1 rquast users 11367 Jun 11 12:05 README_runs.md
     # lrwxrwxrwx 1 rquast users    11 Jun 17 14:48 run10 -> 3.0-a7f0550
     # lrwxrwxrwx 1 rquast users    11 Jul  3 10:31 run14 -> 3.0-58ac69e
     # lrwxrwxrwx 1 rquast users    11 Jul  5 14:46 run15 -> 3.0-087ab71
@@ -169,6 +169,7 @@ if __name__ == "__main__":
     # lrwxrwxrwx 1 rquast users    11 Jun  7 11:34 run7 -> 3.0-9df61fa
     # lrwxrwxrwx 1 rquast users    11 Jun 11 08:49 run8 -> 3.0-de3f5de
     # lrwxrwxrwx 1 rquast users    11 Jun 11 11:31 run9 -> 3.0-3a7cca1
+
 
     harm_file = 'FIDUCEO_Harmonisation_Data_' + str(ch) + '.nc'    
     ds = xarray.open_dataset(harm_file)
@@ -181,7 +182,7 @@ if __name__ == "__main__":
     # OPTIONS
     #------------------------------------------------
     N = 10000 # for draw matrix from Xcov
-    variance_threshold = 0.99 # 99% of total variance
+    variance_threshold = 0.999
     FLAG_X = 2      # 0=normal, 1=multinormal, 2=Xcov
     FLAG_method = 2 # 0=EVD,    1=SVD,         2=PCA
     #------------------------------------------------
@@ -220,12 +221,10 @@ if __name__ == "__main__":
     else:
         pca = PCA(n_components=X.shape[1])
         # pca = PCA(0.999)
-        # X_transformed = pca.fit_transform(X_centered)
-        # X_transformed = pca.fit_transform(X_scaled)
-        X_transformed = pca.fit_transform(X_standardised)
+        X_transformed = pca.fit_transform(X)
         eigenvalues, eigenvectors = pca.explained_variance_, pca.components_.T
 
-    eigenvalues_sum = eigenvalues.sum() # should be ~ n_components
+    eigenvalues_sum = eigenvalues.sum() # should be ~ n_components for z-scores
     eigenvalues_norm = eigenvalues/eigenvalues_sum
     eigenvalues_cumsum = eigenvalues_norm.cumsum()
     eigenvalues_prod = eigenvalues.prod() # should be ~ det(Xcov)
@@ -252,6 +251,15 @@ if __name__ == "__main__":
     plt.savefig('eigenspectrum.png')
     plt.close('all')
 
+    #
+    # Project transformed data axes
+    #
+
+    fig,ax = plt.subplots()
+    pc_plot(X_transformed[:,0:2],eigenvectors[:,0:2].T)
+    plt.savefig('projection.png')
+    plt.close('all')
+
     #-----------------------------------------------------------------
     # Check rotation vector
     #-----------------------------------------------------------------
@@ -262,14 +270,6 @@ if __name__ == "__main__":
 
     W = eigenvectors.dot(np.diag(np.sqrt(eigenvalues))).T
     Y_standardised = X_standardised.dot(W) # = X_transformed
-
-    fig,ax = plt.subplots()
-#    plt.plot(X_standardised[:,0],X_standardised[:,1],'k.',alpha=0.2, label='X: z-score)')
-    plt.plot(Y_standardised[:,0],Y_standardised[:,1],'b.',alpha=0.2, label='Y(PC1,PC2)')
-#    for v,e in zip(eigenvalues[0:2], eigenvectors.T[:,0:2]):
-#        plt.plot([0, 3*np.sqrt(v)*e[0]], [0, 3*np.sqrt(v)*e[1]], 'r-', lw=2)
-    plt.savefig('Y.png')
-    plt.close('all')
 
     #
     # Calculate transformation matrix from eigen decomposition: check on W
@@ -283,63 +283,77 @@ if __name__ == "__main__":
     Z_standardised = Y_standardised.dot(np.linalg.inv(W))
     C = np.cov(Z_standardised.T)
 
-    #-----------------------------------------------------------------
+    #------------------------------------------------------------------
     # Perturb harmonisation coefficients with Jon's contrained sampling
-    #-----------------------------------------------------------------
-
-    #
-    # Calc 2 main PCs
-    #
-
-    pca = PCA(n_components=2)
-    pca.fit(Xcov)
-    X_pca = pca.transform(X_standardised)
-
-    fig,ax = plt.subplots()
-    plt.scatter(X_pca[:, 0], X_pca[:, 1], alpha=0.2)
-    plt.axis('equal')
-    plt.xlabel('PC1')
-    plt.ylabel('PC2')
-    fig.savefig('principal_components_12.png')
-    plt.close('all')
+    #------------------------------------------------------------------
 
     #
     # Create 10 deltas of Xave using (un)constrained random sampling
     #
 
     n = 5
-    random_unconstrained = np.array(generate_10_single(n))
-    random_constrained = np.array(generate_10(n))
-    X_constrained = []
-    X_unconstrained = []
+    random_unconstrained = np.sort(np.array(generate_10_single(n)))
+    random_constrained = np.sort(np.array(generate_10(n)))
+    dX0_constrained = []
+    dX0_unconstrained = []
+    dX1_constrained = []
+    dX1_unconstrained = []
+    for i in range((2*n)):        
+        dX0_constrained.append(random_constrained[i] * eigenvalues[0] * eigenvectors[:,0])
+        dX0_unconstrained.append(random_unconstrained[i] * eigenvalues[0] * eigenvectors[:,0])
+        dX1_constrained.append(random_constrained[i] * eigenvalues[1] * eigenvectors[:,1])
+        dX1_unconstrained.append(random_unconstrained[i] * eigenvalues[1] * eigenvectors[:,1])
 
-    for i in range((2*n)):
-        
-        X_constrained.append(X_pca[:,0] * random_constrained[i]) 
-        X_unconstrained.append(X_pca[:,0] * random_unconstrained[i])       
+    dX0_constrained = np.array(dX0_constrained)
+    dX0_unconstrained = np.array(dX0_unconstrained)
+    dX1_constrained = np.array(dX1_constrained)
+    dX1_unconstrained = np.array(dX1_unconstrained)
 
-    X_constrained = np.array(X_constrained)
-    X_unconstrained = np.array(X_unconstrained)
+    fig,ax = plt.subplots()
+    for i in range(2*n):
+        labelstr_c = 'PC1 delta (constrained) ' + str(i)
+        plt.plot(dX0_constrained[i,:], lw=2, label=labelstr_c)
+    for i in range(2*n):
+        labelstr_u = 'PC1 delta (unconstrained) ' + str(i)
+        plt.plot(dX0_unconstrained[i,:], '.', label=labelstr_u)
+    plt.legend(loc=2, fontsize=6)
+    plt.xlabel('parameter index')
+    plt.ylabel('value')
+    plt.tight_layout()
+    plt.savefig('pc1_deltas.png')
+    plt.close('all')
 
-    sd1 = np.std(X_constrained,axis=0)   # wrong! (fix re discussion with Chris) 
-    dXave = sd1 * pca.components_.T[:,0] # wrong! (fix re discussion with Chris)
+    fig,ax = plt.subplots()
+    for i in range(2*n):
+        labelstr_c = 'PC2 delta (constrained) ' + str(i)
+        plt.plot(dX1_constrained[i,:], lw=2, label=labelstr_c)
+    for i in range(2*n):
+        labelstr_u = 'PC2 delta (unconstrained) ' + str(i)
+        plt.plot(dX1_unconstrained[i,:], '.', label=labelstr_u)
+    plt.legend(loc=2, fontsize=6)
+    plt.xlabel('parameter index')
+    plt.ylabel('value')
+    plt.tight_layout()
+    plt.savefig('pc2_deltas.png')
+    plt.close('all')
 
     idx0 = np.arange(0,27,3)
     idx1 = np.arange(1,28,3)
     idx2 = np.arange(2,29,3)
 
-    # proj_PC = np.matmul(X_constrained,np.matmul(U,np.diag(S)**2)) # if SVD
-    proj_PC = np.matmul(X_constrained,W)
-
-    proj_PC1 = proj_PC[:,0]
-    proj_PC2 = proj_PC[:,1]
+    fig,ax = plt.subplots()
+    plt.plot(dX0_constrained[0,idx0],dX1_constrained[0,idx0],'.',alpha=0.2)
+    fig.savefig('principal_components_a0.png')
+    plt.close('all')
 
     fig,ax = plt.subplots()
-    plt.plot(proj_PC1, proj_PC2,  'b.', alpha=0.2)  
-    plt.xlabel('PC1')
-    plt.ylabel('PC2')
-    plt.tight_layout()
-    plt.savefig('principal_components_12.png')
+    plt.plot(dX0_constrained[1,idx1],dX1_constrained[1,idx1],'.',alpha=0.2)
+    fig.savefig('principal_components_a1.png')
+    plt.close('all')
+
+    fig,ax = plt.subplots()
+    plt.plot(dX0_constrained[2,idx2],dX1_constrained[2,idx2],'.',alpha=0.2)
+    fig.savefig('principal_components_a2.png')
     plt.close('all')
 
     print('** end')
