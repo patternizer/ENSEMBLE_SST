@@ -6,8 +6,8 @@
 # NB: include code: plot_ensemble.py
 
 # =======================================
-# Version 0.23
-# 7 June, 2019
+# Version 0.24
+# 25 June, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
@@ -44,6 +44,7 @@ from sklearn.decomposition import PCA
 from sklearn.linear_model import SGDClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import GridSearchCV
+import convert_func as con
 
 # =======================================    
 # AUXILIARY METHODS
@@ -577,6 +578,9 @@ if __name__ == "__main__":
     ch = 37
     npop = 1000000
     nens = 11
+    idx = 7          # MTA (see avhrr_sat)
+    l1b_file = 'mta_mmd.nc'
+    harm_file = 'FIDUCEO_Harmonisation_Data_' + str(ch) + '.nc'
 
     flag_load_draws = 1
     flag_load_ensemble = 1 
@@ -585,18 +589,26 @@ if __name__ == "__main__":
     flag_plot = 0
     flag_plot_L_BT = 1
 
-    harm_file = 'FIDUCEO_Harmonisation_Data_' + str(ch) + '.nc'
-    ds = xarray.open_dataset(harm_file)
-
-    sensor = ['METOPA','NOAA19','NOAA18','NOAA17','NOAA16','NOAA15','NOAA\
-14','NOAA12','NOAA11']
-
+    if idx == 7:
+        noT = True
+    else:
+        noT = False
     if ch == 37:
         channel = 3
     elif ch == 11:
         channel = 4
     else:
         channel = 5
+
+    #
+    # Load harmonisation parameters
+    #
+
+    ds = xarray.open_dataset(harm_file)
+
+    flag_new = False # NEW harmonisation structure (run >= '3.0-4d111a1')
+
+    sensor = ['METOPA','NOAA19','NOAA18','NOAA17','NOAA16','NOAA15','NOAA14','NOAA12','NOAA11']
 
     #
     # Load / Generate draws
@@ -826,6 +838,7 @@ if __name__ == "__main__":
             bad_data = np.less_equal(BT_delta[:,:,i],np.zeros(BT.shape))
             BT[bad_data] = np.nan
             BT_delta[bad_data,i] = np.nan            
+
             vmin = -0.0003
             vmax = 0.0003
             plot_orbit_var(lat, lon, np.array(L-L_delta[:,:,i]), vmin, vmax, projection, filestr_L, titlestr_L, varstr_L)
