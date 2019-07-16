@@ -22,6 +22,45 @@ def plot_eigenspectrum(ev):
     plt.savefig(plotstr)
     plt.close('all')
 
+def plot_ensemble_an(dA,Xu):
+
+    nensemble = dA.shape[0]
+    nparameters = dA.shape[1]
+    if nparameters > 27:
+        for i in range(4):
+            fig,ax = plt.subplots()
+            idx = np.arange(i,nparameters-1,4) # -1 --> MTA:N12 (excl N11)
+            for k in range(len(idx)-1):
+                for l in range(nensemble):
+                    labelstr = 'ens('+str(l)+')'
+                    if k == 0:
+                        plt.plot(k,dA[l,idx[k]]/Xu[idx[k]],'.',label=labelstr)
+                    else:
+                        plt.plot(k,dA[l,idx[k]]/Xu[idx[k]],'.',label=None)
+            plt.legend(loc=2, fontsize=8, ncol=2)
+            plt.ylabel(r'$\delta a(n)/u(n)$')
+            plt.xlabel('sensor')
+            plotstr = 'ensemble_a' + str(i)
+            plt.savefig(plotstr)
+            plt.close('all')
+    else:
+        for i in range(3):
+            fig,ax = plt.subplots()
+            idx = np.arange(i,nparameters-1,3) # -1 --> MTA:N12 (excl N11)
+            for k in range(len(idx)-1):
+                for l in range(nensemble):
+                    labelstr = 'ens('+str(l)+')'
+                    if k == 0:
+                        plt.plot(k,dA[l,idx[k]]/Xu[idx[k]],'.',label=labelstr)
+                    else:
+                        plt.plot(k,dA[l,idx[k]]/Xu[idx[k]],'.',label=None)
+            plt.legend(loc=2, fontsize=8, ncol=2)
+            plt.ylabel(r'$\delta a(n)/u(n)$')
+            plt.xlabel('sensor')
+            plotstr = 'ensemble_a' + str(i)
+            plt.savefig(plotstr)
+            plt.close('all')
+
 def plot_pc_deltas(dX,Xu):
 
     fig,ax = plt.subplots()
@@ -53,6 +92,22 @@ def plot_pc_deltas(dX,Xu):
     plt.ylabel(r'$\delta a(n)/u(n)$')
     plt.tight_layout()
     plotstr = 'pc2_deltas_over_Xu'+plotstem
+    plt.savefig(plotstr)
+    plt.close('all')
+
+    fig,ax = plt.subplots()
+    for i in range(2*n):
+        labelstr_c = 'nPC (constrained) ' + str(i+1)
+        plt.plot(dX['dX_constrained'][i,:]/Xu, lw=2, label=labelstr_c)
+    for i in range(2*n):
+        labelstr_u = '(unconstrained) ' + str(i+1)
+        plt.plot(dX['dX_unconstrained'][i,:]/Xu, '.', label=labelstr_u)
+#    plt.ylim(-2,2)
+    plt.legend(loc=2, fontsize=6, ncol=4)
+    plt.xlabel('parameter, a(n)')
+    plt.ylabel(r'$\delta a(n)/u(n)$')
+    plt.tight_layout()
+    plotstr = 'npc_deltas_over_Xu'+plotstem
     plt.savefig(plotstr)
     plt.close('all')
 
