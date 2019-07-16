@@ -67,12 +67,11 @@ def cov2ev(X,c):
 
     eigenvalues,eigenvectors = np.linalg.eig(Xcov)
     eigenvalues_cumsum = (eigenvalues/eigenvalues.sum()).cumsum()
-    print('cumsum=',eigenvalues_cumsum)
     nPC = np.where(eigenvalues_cumsum > c)[0][0] # NB: python indexing
-    nPC_var = eigenvalues_cumsum[nPC]
+    nPC_variance = eigenvalues_cumsum[nPC]
 
     print('nPC=',(nPC+1))
-    print('nPC_var=',nPC_var)
+    print('nPC_variance=',nPC_variance)
 
     ev = {}
     ev['eigenvectors'] = eigenvectors
@@ -83,7 +82,7 @@ def cov2ev(X,c):
     ev['eigenvalues_prod'] = eigenvalues.prod() # should be ~ det(Xcov)
     ev['eigenvalues_rank'] = np.arange(1,len(eigenvalues)+1) # for plotting
     ev['nPC'] = nPC
-    ev['nPC_variance'] = nPC_var
+    ev['nPC_variance'] = nPC_variance
 
     return ev
 
@@ -96,8 +95,9 @@ def calc_dX(n,ev):
     eigenvectors = ev['eigenvectors']
     nparameters = eigenvectors.shape[1]
     dX_constrained = np.zeros(shape=(2*n,nparameters))
+    random_constrained = np.sort(np.array(crs.generate_10(n)))
     for k in range(nPC):
-        random_constrained = np.sort(np.array(crs.generate_10(n)))
+#        random_constrained = np.sort(np.array(crs.generate_10(n)))
         dX_c = np.zeros(shape=(2*n,nparameters))
         for i in range((2*n)):        
             dX_c[i,:] = random_constrained[i] * np.sqrt(eigenvalues[k]) * eigenvectors[:,k]
@@ -136,6 +136,7 @@ def calc_dX2(n,ev):
 
 def calc_dBT(dA, har, mmd, channel, idx_):
 
+    noT = False
     dBT = np.empty(shape=(len(mmd['avhrr-ma_x']),dA.shape[0]))
     for i in range(dA.shape[0]):
         parameters = dA[i,:]    
@@ -194,27 +195,24 @@ def calc_dBT(dA, har, mmd, channel, idx_):
 
 if __name__ == "__main__":
 
-    #------------------------------------------------
+    #-------------------------------------------------------------------
     # OPTIONS
-    #------------------------------------------------
+    #-------------------------------------------------------------------
     ch = 37
     n = 5 # --> (2*n) = 10 = number of ensemble members
     c = 0.99 # variance_threshold
-    N = 10000 # for draw matrix from Xcov
-
-    FLAG_crs_test = False
+#    N = 10000 # for draw matrix from Xcov
     FLAG_new = True # NEW harmonisation structure (run >= '3.0-4d111a1')
-
+    FLAG_plot = False
 #    software_tag = '3e8c463' # job dir=job_avhxx_v6_EIV_10x_11 (old runs)
 #    software_tag = '4d111a1' # job_dir=job_avhxx_v6_EIV_10x_11 (new runs)
     software_tag = 'v0.3Bet' # job_dir=job_avhxx_v6_EIV_10x_11 (new runs)
-
     plotstem = '_'+str(ch)+'_'+software_tag+'.png'
     har_file = 'FIDUCEO_Harmonisation_Data_' + str(ch) + '.nc'    
     mmd_file = 'mta_mmd.nc'
-
     idx = 7 # MTA (see avhrr_sat)
-    noT = False
+    #-------------------------------------------------------------------
+
     if ch == 37:
         channel = 3
     elif ch == 11:
@@ -259,27 +257,29 @@ if __name__ == "__main__":
     ev = cov2ev(Xcov,c)
     dX = calc_dX(n,ev)
     dA = dX # sum of nPC (99% variance)
-
     dX2 = calc_dX2(n,ev)
     dA2 = dX2['dX0_constrained'] + dX2['dX1_constrained'] # sum of first 2 PCs
-
-    dA_cov = np.cov(dA.T) # should be close to Xcov if working
-    dA_u = dA/Xave        # should be close to Xu if working
     dBT = calc_dBT(dA, har, mmd, channel, idx_)
+    dA_cov = np.cov(dA.T) # should be close to Xcov if working
+    dA_u = dA             # should be close to Xu if working
+
+    print('|Xu - dA|=',np.linalg.norm(Xu-dA))
+    print('|Xcov - dA_cov|=',np.linalg.norm(Xcov-dA_cov))
 
     # =======================================
     # INCLUDE PLOT CODE:
     exec(open('plot_cov2ensemble.py').read())
     # =======================================
 
-    plot_eigenspectrum(ev)
-    plot_ensemble_an(dA,Xu)
-    plot_ensemble_deltas_normalised(dX,Xu)
-    plot_BT_deltas(dBT,BT_MMD)
-#    plot_ensemble_deltas(dX)
-#    plot_pc_deltas(dX2,Xu)
-#    plot_crs()
+    if FLAG_plot:
 
+        plot_eigenspectrum(ev)
+        plot_ensemble_an(dA,Xu)
+        plot_ensemble_deltas_normalised(dX,Xu)
+        plot_BT_deltas(dBT,BT_MMD)
+        plot_ensemble_deltas(dX)
+        plot_pc_deltas(dX2,Xu)
+        plot_crs()
 
     #------------------------------------------------        
     print('** end')
