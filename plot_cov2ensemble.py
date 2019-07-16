@@ -7,18 +7,57 @@
 # michael.taylor AT reading DOT ac DOT uk
 # ========================================
 
+def plot_BT_deltas(dBT,BT_MMD):
+    
+    fig,ax = plt.subplots()
+    for i in range(2*n):
+        labelstr = 'ens(' + str(i+1) + ')'
+        gd = dBT[:,i] > 0
+        plt.plot(BT_MMD[gd],dBT[gd,i], '.', markersize=2, alpha=0.2, label=labelstr)
+    plt.plot([220,310],[220,310], '--', color='black', label=None)
+    plt.xlim(220,310)
+    plt.ylim(220,310)
+    plt.legend(loc=2, fontsize=8, ncol=5)
+    plt.xlabel(r'brightness temperature, BT / $K$')
+    plt.ylabel(r'ensemble brightness temperature, ens(BT) / $K$')
+    plotstr = 'bt_deltas' + plotstem
+    plt.tight_layout()
+    plt.savefig(plotstr)
+    plt.close('all')
+
+    BTvec = np.arange(230,310,10)
+    for k in range(len(BTvec)-1):
+        fig,ax = plt.subplots()
+        for i in range(2*n):
+            labelstr = 'ens(' + str(i+1) + ')'
+            domain = (BT_MMD >= BTvec[k]) & (BT_MMD < BTvec[k+1])  
+            gd = (dBT[:,i] > 0) & domain 
+            plt.plot(BT_MMD[gd],dBT[gd,i], '.', markersize=2, alpha=0.2, label=labelstr)
+        plt.plot([BTvec[k],BTvec[k+1]],[BTvec[k],BTvec[k+1]], '--', color='black', label=None)
+        plt.xlim(BTvec[k],BTvec[k+1])
+        plt.ylim(BTvec[k],BTvec[k+1])
+        plt.legend(loc=2, fontsize=8, ncol=5)
+        plt.xlabel(r'brightness temperature, BT / $K$')
+        plt.ylabel(r'ensemble brightness temperature, ens(BT) / $K$')
+        plotstr = 'bt_deltas' + '_' + str(BTvec[k]) + '_' + str(BTvec[k+1]) + plotstem
+        plt.tight_layout()
+        plt.savefig(plotstr)
+        plt.close('all')
+
 def plot_eigenspectrum(ev):
 
     nPC = ev['nPC']
     fig,ax = plt.subplots()
-    plt.plot(ev['eigenvalues_rank'], ev['eigenvalues_norm'], linestyle='-', marker='.', color='b', label=r'$\lambda/\sum\lambda$')
+    plt.plot(ev['eigenvalues_rank'], ev['eigenvalues_norm'], linestyle='-', marker='.', color='b', label=r'$\lambda/sum(lambda)$')
     plt.plot(ev['eigenvalues_rank'][nPC], ev['eigenvalues_norm'][nPC], marker='o', color='k', mfc='none',label=None)
     plt.plot(ev['eigenvalues_rank'], ev['eigenvalues_cumsum'], linestyle='-', marker='.', color='r',label='cumulative')
-    plt.plot(ev['eigenvalues_rank'][nPC], ev['eigenvalues_cumsum'][nPC], marker='o', color='k', mfc='none',label='n(PC)='+str(nPC))
+    labelstr = 'n(PC)='+str(nPC+1)+' var='+"{0:.5f}".format(ev['nPC_variance'])
+    plt.plot(ev['eigenvalues_rank'][nPC], ev['eigenvalues_cumsum'][nPC], marker='o', color='k', mfc='none',label=labelstr)
     plt.legend(loc='right', fontsize=10)
     plt.xlabel('rank')
-    plt.ylabel('relative variance', color='b')
-    plotstr = 'eigenspectrum'+plotstem
+    plt.ylabel('relative variance')
+    plotstr = 'eigenspectrum' + plotstem
+    plt.tight_layout()
     plt.savefig(plotstr)
     plt.close('all')
 
@@ -32,15 +71,16 @@ def plot_ensemble_an(dA,Xu):
             idx = np.arange(i,nparameters-1,4) # -1 --> MTA:N12 (excl N11)
             for k in range(len(idx)-1):
                 for l in range(nensemble):
-                    labelstr = 'ens('+str(l)+')'
+                    labelstr = 'ens('+str(l+1)+')'
                     if k == 0:
                         plt.plot(k,dA[l,idx[k]]/Xu[idx[k]],'.',label=labelstr)
                     else:
                         plt.plot(k,dA[l,idx[k]]/Xu[idx[k]],'.',label=None)
-            plt.legend(loc=2, fontsize=8, ncol=2)
+            plt.legend(loc=2, fontsize=8, ncol=5)
             plt.ylabel(r'$\delta a(n)/u(n)$')
             plt.xlabel('sensor')
-            plotstr = 'ensemble_a' + str(i)
+            plotstr = 'ensemble_a' + str(i) + plotstem
+            plt.tight_layout()
             plt.savefig(plotstr)
             plt.close('all')
     else:
@@ -49,65 +89,80 @@ def plot_ensemble_an(dA,Xu):
             idx = np.arange(i,nparameters-1,3) # -1 --> MTA:N12 (excl N11)
             for k in range(len(idx)-1):
                 for l in range(nensemble):
-                    labelstr = 'ens('+str(l)+')'
+                    labelstr = 'ens('+str(l+1)+')'
                     if k == 0:
                         plt.plot(k,dA[l,idx[k]]/Xu[idx[k]],'.',label=labelstr)
                     else:
                         plt.plot(k,dA[l,idx[k]]/Xu[idx[k]],'.',label=None)
-            plt.legend(loc=2, fontsize=8, ncol=2)
+            plt.legend(loc=2, fontsize=8, ncol=5)
             plt.ylabel(r'$\delta a(n)/u(n)$')
             plt.xlabel('sensor')
-            plotstr = 'ensemble_a' + str(i)
+            plotstr = 'ensemble_a' + str(i) + plotstem
+            plt.tight_layout()
             plt.savefig(plotstr)
             plt.close('all')
 
-def plot_pc_deltas(dX,Xu):
+def plot_ensemble_deltas_normalised(dX,Xu):
 
     fig,ax = plt.subplots()
     for i in range(2*n):
-        labelstr_c = 'PC1 (constrained) ' + str(i+1)
-        plt.plot(dX['dX0_constrained'][i,:]/Xu, lw=2, label=labelstr_c)
-    for i in range(2*n):
-        labelstr_u = '(unconstrained) ' + str(i+1)
-        plt.plot(dX['dX0_unconstrained'][i,:]/Xu, '.', label=labelstr_u)
+        labelstr_c = 'ens(' + str(i+1) + ')'
+        plt.plot(dX[i,:]/Xu, lw=2, label=labelstr_c)
 #    plt.ylim(-2,2)
-    plt.legend(loc=2, fontsize=6, ncol=4)
+    plt.legend(loc=2, fontsize=8, ncol=5)
     plt.xlabel('parameter, a(n)')
     plt.ylabel(r'$\delta a(n)/u(n)$')
+    plotstr = 'npc_deltas_over_Xu' + plotstem
     plt.tight_layout()
-    plotstr = 'pc1_deltas_over_Xu'+plotstem
+    plt.savefig(plotstr)
+    plt.close('all')
+
+def plot_ensemble_deltas(dX):
+
+    fig,ax = plt.subplots()
+    for i in range(2*n):
+        labelstr_c = 'ens(' + str(i+1) + ')'
+        plt.plot(dX[i,:], lw=2, label=labelstr_c)
+#    plt.ylim(-2,2)
+    plt.legend(loc=2, fontsize=8, ncol=5)
+    plt.xlabel('parameter, a(n)')
+    plt.ylabel(r'$\delta a(n)$')
+    plotstr = 'npc_deltas' + plotstem
+    plt.tight_layout()
+    plt.savefig(plotstr)
+    plt.close('all')
+
+def plot_pc_deltas(dX2,Xu):
+
+    fig,ax = plt.subplots()
+    for i in range(2*n):
+        labelstr_c = '(constrained) ens(' + str(i+1) + ')'
+        plt.plot(dX2['dX0_constrained'][i,:]/Xu, lw=2, label=labelstr_c)
+    for i in range(2*n):
+        labelstr_u = '(unconstrained) ens(' + str(i+1) + ')'
+        plt.plot(dX2['dX0_unconstrained'][i,:]/Xu, '.', label=labelstr_u)
+#    plt.ylim(-2,2)
+    plt.legend(loc=2, fontsize=6, ncol=2)
+    plt.xlabel('parameter, a(n)')
+    plt.ylabel(r'$\delta a(n)/u(n)$')
+    plotstr = 'pc1_deltas_over_Xu' + plotstem
+    plt.tight_layout()
     plt.savefig(plotstr)
     plt.close('all')
 
     fig,ax = plt.subplots()
     for i in range(2*n):
-        labelstr_c = 'PC2 (constrained) ' + str(i+1)
-        plt.plot(dX['dX1_constrained'][i,:]/Xu, lw=2, label=labelstr_c)
+        labelstr_c = '(constrained) ens(' + str(i+1) +')'
+        plt.plot(dX2['dX1_constrained'][i,:]/Xu, lw=2, label=labelstr_c)
     for i in range(2*n):
-        labelstr_u = '(unconstrained) ' + str(i+1)
-        plt.plot(dX['dX1_unconstrained'][i,:]/Xu, '.', label=labelstr_u)
+        labelstr_u = '(unconstrained) ens(' + str(i+1) + ')'
+        plt.plot(dX2['dX1_unconstrained'][i,:]/Xu, '.', label=labelstr_u)
 #    plt.ylim(-2,2)
-    plt.legend(loc=2, fontsize=6, ncol=4)
+    plt.legend(loc=2, fontsize=6, ncol=2)
     plt.xlabel('parameter, a(n)')
     plt.ylabel(r'$\delta a(n)/u(n)$')
+    plotstr = 'pc2_deltas_over_Xu' + plotstem
     plt.tight_layout()
-    plotstr = 'pc2_deltas_over_Xu'+plotstem
-    plt.savefig(plotstr)
-    plt.close('all')
-
-    fig,ax = plt.subplots()
-    for i in range(2*n):
-        labelstr_c = 'nPC (constrained) ' + str(i+1)
-        plt.plot(dX['dX_constrained'][i,:]/Xu, lw=2, label=labelstr_c)
-    for i in range(2*n):
-        labelstr_u = '(unconstrained) ' + str(i+1)
-        plt.plot(dX['dX_unconstrained'][i,:]/Xu, '.', label=labelstr_u)
-#    plt.ylim(-2,2)
-    plt.legend(loc=2, fontsize=6, ncol=4)
-    plt.xlabel('parameter, a(n)')
-    plt.ylabel(r'$\delta a(n)/u(n)$')
-    plt.tight_layout()
-    plotstr = 'npc_deltas_over_Xu'+plotstem
     plt.savefig(plotstr)
     plt.close('all')
 
@@ -133,7 +188,7 @@ def plot_crs():
         ax[1].set_xlim(-5,5)
         ax[1].set_xlabel('z-score')
         ax[1].set_ylabel('count')
-        plotstr = 'random_numbers_n_' + str(n) + '.png'
+        plotstr = 'random_numbers_n_' + str(n) + plotstem + '.png' 
         plt.tight_layout()
         plt.savefig(plotstr)
         plt.close('all')
