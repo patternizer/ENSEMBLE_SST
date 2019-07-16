@@ -2,8 +2,8 @@
 
 # Code include segment in: cov2ensemble.py
 # ========================================
-# Version 0.1
-# 11 July, 2019
+# Version 0.2
+# 16 July, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # ========================================
 
@@ -17,7 +17,8 @@ def plot_BT_deltas(dBT,BT_MMD):
     plt.plot([220,310],[220,310], '--', color='black', label=None)
     plt.xlim(220,310)
     plt.ylim(220,310)
-    plt.legend(loc=2, fontsize=8, ncol=5)
+    if n <= 5:
+        plt.legend(loc=2, fontsize=8, ncol=5)
     plt.xlabel(r'brightness temperature, BT / $K$')
     plt.ylabel(r'ensemble brightness temperature, ens(BT) / $K$')
     plotstr = 'bt_deltas' + plotstem
@@ -36,7 +37,8 @@ def plot_BT_deltas(dBT,BT_MMD):
         plt.plot([BTvec[k],BTvec[k+1]],[BTvec[k],BTvec[k+1]], '--', color='black', label=None)
         plt.xlim(BTvec[k],BTvec[k+1])
         plt.ylim(BTvec[k],BTvec[k+1])
-        plt.legend(loc=2, fontsize=8, ncol=5)
+        if n <= 5:
+            plt.legend(loc=2, fontsize=8, ncol=5)
         plt.xlabel(r'brightness temperature, BT / $K$')
         plt.ylabel(r'ensemble brightness temperature, ens(BT) / $K$')
         plotstr = 'bt_deltas' + '_' + str(BTvec[k]) + '_' + str(BTvec[k+1]) + plotstem
@@ -76,7 +78,8 @@ def plot_ensemble_an(dA,Xu):
                         plt.plot(k,dA[l,idx[k]]/Xu[idx[k]],'.',label=labelstr)
                     else:
                         plt.plot(k,dA[l,idx[k]]/Xu[idx[k]],'.',label=None)
-            plt.legend(loc=2, fontsize=8, ncol=5)
+            if n <= 5:
+                plt.legend(loc=2, fontsize=8, ncol=5)
             plt.ylabel(r'$\delta a(n)/u(n)$')
             plt.xlabel('sensor')
             plotstr = 'ensemble_a' + str(i) + plotstem
@@ -94,7 +97,8 @@ def plot_ensemble_an(dA,Xu):
                         plt.plot(k,dA[l,idx[k]]/Xu[idx[k]],'.',label=labelstr)
                     else:
                         plt.plot(k,dA[l,idx[k]]/Xu[idx[k]],'.',label=None)
-            plt.legend(loc=2, fontsize=8, ncol=5)
+            if n <= 5:
+                plt.legend(loc=2, fontsize=8, ncol=5)
             plt.ylabel(r'$\delta a(n)/u(n)$')
             plt.xlabel('sensor')
             plotstr = 'ensemble_a' + str(i) + plotstem
@@ -108,8 +112,8 @@ def plot_ensemble_deltas_normalised(dX,Xu):
     for i in range(2*n):
         labelstr_c = 'ens(' + str(i+1) + ')'
         plt.plot(dX[i,:]/Xu, lw=2, label=labelstr_c)
-#    plt.ylim(-2,2)
-    plt.legend(loc=2, fontsize=8, ncol=5)
+    if n <= 5:
+        plt.legend(loc=2, fontsize=8, ncol=5)
     plt.xlabel('parameter, a(n)')
     plt.ylabel(r'$\delta a(n)/u(n)$')
     plotstr = 'npc_deltas_over_Xu' + plotstem
@@ -123,8 +127,8 @@ def plot_ensemble_deltas(dX):
     for i in range(2*n):
         labelstr_c = 'ens(' + str(i+1) + ')'
         plt.plot(dX[i,:], lw=2, label=labelstr_c)
-#    plt.ylim(-2,2)
-    plt.legend(loc=2, fontsize=8, ncol=5)
+    if n <= 5:
+        plt.legend(loc=2, fontsize=8, ncol=5)
     plt.xlabel('parameter, a(n)')
     plt.ylabel(r'$\delta a(n)$')
     plotstr = 'npc_deltas' + plotstem
@@ -141,8 +145,8 @@ def plot_pc_deltas(dX2,Xu):
     for i in range(2*n):
         labelstr_u = '(unconstrained) ens(' + str(i+1) + ')'
         plt.plot(dX2['dX0_unconstrained'][i,:]/Xu, '.', label=labelstr_u)
-#    plt.ylim(-2,2)
-    plt.legend(loc=2, fontsize=6, ncol=2)
+    if n <= 5:
+        plt.legend(loc=2, fontsize=6, ncol=2)
     plt.xlabel('parameter, a(n)')
     plt.ylabel(r'$\delta a(n)/u(n)$')
     plotstr = 'pc1_deltas_over_Xu' + plotstem
@@ -157,8 +161,8 @@ def plot_pc_deltas(dX2,Xu):
     for i in range(2*n):
         labelstr_u = '(unconstrained) ens(' + str(i+1) + ')'
         plt.plot(dX2['dX1_unconstrained'][i,:]/Xu, '.', label=labelstr_u)
-#    plt.ylim(-2,2)
-    plt.legend(loc=2, fontsize=6, ncol=2)
+    if n <= 5:
+        plt.legend(loc=2, fontsize=6, ncol=2)
     plt.xlabel('parameter, a(n)')
     plt.ylabel(r'$\delta a(n)/u(n)$')
     plotstr = 'pc2_deltas_over_Xu' + plotstem
