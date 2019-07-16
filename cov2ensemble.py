@@ -4,8 +4,8 @@
 # include plot code: plot_cov2ensemble.py
   
 # =======================================
-# Version 0.11
-# 15 July, 2019
+# Version 0.12
+# 16 July, 2019
 # https://patternizer.github.io/
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
@@ -67,7 +67,12 @@ def cov2ev(X,c):
 
     eigenvalues,eigenvectors = np.linalg.eig(Xcov)
     eigenvalues_cumsum = (eigenvalues/eigenvalues.sum()).cumsum()
-    nPC = np.where(eigenvalues_cumsum > c)[0][0]
+    print('cumsum=',eigenvalues_cumsum)
+    nPC = np.where(eigenvalues_cumsum > c)[0][0] # NB: python indexing
+    nPC_var = eigenvalues_cumsum[nPC]
+
+    print('nPC=',(nPC+1))
+    print('nPC_var=',nPC_var)
 
     ev = {}
     ev['eigenvectors'] = eigenvectors
@@ -78,10 +83,30 @@ def cov2ev(X,c):
     ev['eigenvalues_prod'] = eigenvalues.prod() # should be ~ det(Xcov)
     ev['eigenvalues_rank'] = np.arange(1,len(eigenvalues)+1) # for plotting
     ev['nPC'] = nPC
+    ev['nPC_variance'] = nPC_var
 
     return ev
 
 def calc_dX(n,ev):
+    '''
+    Create (2*n) deltas of Xave using (un)constrained random sampling
+    '''
+    nPC = ev['nPC']
+    eigenvalues = ev['eigenvalues']
+    eigenvectors = ev['eigenvectors']
+    nparameters = eigenvectors.shape[1]
+    dX_constrained = np.zeros(shape=(2*n,nparameters))
+    for k in range(nPC):
+        random_constrained = np.sort(np.array(crs.generate_10(n)))
+        dX_c = np.zeros(shape=(2*n,nparameters))
+        for i in range((2*n)):        
+            dX_c[i,:] = random_constrained[i] * np.sqrt(eigenvalues[k]) * eigenvectors[:,k]
+        dX_constrained = dX_constrained + dX_c
+    dX = dX_constrained
+
+    return dX
+
+def calc_dX2(n,ev):
     '''
     Create (2*n) deltas of Xave using (un)constrained random sampling
     '''
@@ -101,27 +126,13 @@ def calc_dX(n,ev):
         dX1_constrained.append(random_constrained[i] * np.sqrt(eigenvalues[1]) * eigenvectors[:,1])
         dX1_unconstrained.append(random_unconstrained[i] * np.sqrt(eigenvalues[1]) * eigenvectors[:,1])
 
-    dX_constrained = np.zeros(shape=(2*n,nparameters))
-    dX_unconstrained = np.zeros(shape=(2*n,nparameters))
-#    for k in range(nPC):
-    for k in range(nparameters):
-        dX_c = np.zeros(shape=(2*n,nparameters))
-        dX_u = np.zeros(shape=(2*n,nparameters))
-        for i in range((2*n)):        
-            dX_c[i,:] = random_constrained[i] * np.sqrt(eigenvalues[k]) * eigenvectors[:,k]
-            dX_u[i,:] = random_unconstrained[i] * np.sqrt(eigenvalues[k]) * eigenvectors[:,k]
-        dX_constrained = dX_constrained + dX_c
-        dX_unconstrained = dX_unconstrained + dX_u
+    dX2 = {}
+    dX2['dX0_constrained'] = np.array(dX0_constrained)
+    dX2['dX0_unconstrained'] = np.array(dX0_unconstrained)
+    dX2['dX1_constrained'] = np.array(dX1_constrained)
+    dX2['dX1_unconstrained'] = np.array(dX1_unconstrained)
 
-    dX = {}
-    dX['dX0_constrained'] = np.array(dX0_constrained)
-    dX['dX0_unconstrained'] = np.array(dX0_unconstrained)
-    dX['dX1_constrained'] = np.array(dX1_constrained)
-    dX['dX1_unconstrained'] = np.array(dX1_unconstrained)
-    dX['dX_constrained'] = np.array(dX_constrained)
-    dX['dX_unconstrained'] = np.array(dX_unconstrained)
-
-    return dX
+    return dX2
 
 def calc_dBT(dA, har, mmd, channel, idx_):
 
@@ -186,7 +197,7 @@ if __name__ == "__main__":
     #------------------------------------------------
     # OPTIONS
     #------------------------------------------------
-    ch = 12
+    ch = 37
     n = 5 # --> (2*n) = 10 = number of ensemble members
     c = 0.99 # variance_threshold
     N = 10000 # for draw matrix from Xcov
@@ -247,17 +258,14 @@ if __name__ == "__main__":
 
     ev = cov2ev(Xcov,c)
     dX = calc_dX(n,ev)
-    dA = dX['dX_constrained']
-#    dA = dX['dX0_constrained'] + dX['dX1_constrained'] # sum of first 2 PCs
+    dA = dX # sum of nPC (99% variance)
+
+    dX2 = calc_dX2(n,ev)
+    dA2 = dX2['dX0_constrained'] + dX2['dX1_constrained'] # sum of first 2 PCs
+
     dA_cov = np.cov(dA.T) # should be close to Xcov if working
     dA_u = dA/Xave        # should be close to Xu if working
     dBT = calc_dBT(dA, har, mmd, channel, idx_)
-
-    print('dA_cov=',dA_cov)
-    print('Xcov=',Xcov)
-    print('dA_u=',dA_u)
-    print('Xu=',Xu)
-
 
     # =======================================
     # INCLUDE PLOT CODE:
@@ -266,8 +274,12 @@ if __name__ == "__main__":
 
     plot_eigenspectrum(ev)
     plot_ensemble_an(dA,Xu)
-    plot_pc_deltas(dX,Xu)
-    plot_crs()
+    plot_ensemble_deltas_normalised(dX,Xu)
+    plot_BT_deltas(dBT,BT_MMD)
+#    plot_ensemble_deltas(dX)
+#    plot_pc_deltas(dX2,Xu)
+#    plot_crs()
+
 
     #------------------------------------------------        
     print('** end')
