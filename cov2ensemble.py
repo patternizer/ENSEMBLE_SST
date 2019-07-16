@@ -4,8 +4,8 @@
 # include plot code: plot_cov2ensemble.py
   
 # =======================================
-# Version 0.10
-# 14 July, 2019
+# Version 0.11
+# 15 July, 2019
 # https://patternizer.github.io/
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
@@ -29,7 +29,7 @@ from mpl_toolkits.mplot3d import proj3d
 #------------------------------------------------------------------------------
 import crs as crs            # constrained random sampling code: crs.py
 import cov2u as cov2u        # estimation of uncertainty from covariance matrix
-import convert_func          # measurement equations & L<-->BT conversion
+import convert_func as con   # measurement equations & L<-->BT conversion
 #------------------------------------------------------------------------------
 
 def FPE(x0,x1):
@@ -81,11 +81,14 @@ def cov2ev(X,c):
 
     return ev
 
-def calc_dX(n,eigenvalues,eigenvectors):
+def calc_dX(n,ev):
     '''
     Create (2*n) deltas of Xave using (un)constrained random sampling
     '''
-
+    nPC = ev['nPC']
+    eigenvalues = ev['eigenvalues']
+    eigenvectors = ev['eigenvectors']
+    nparameters = eigenvectors.shape[1]
     random_unconstrained = np.sort(np.array(crs.generate_10_single(n)))
     random_constrained = np.sort(np.array(crs.generate_10(n)))
     dX0_constrained = []
@@ -98,13 +101,81 @@ def calc_dX(n,eigenvalues,eigenvectors):
         dX1_constrained.append(random_constrained[i] * np.sqrt(eigenvalues[1]) * eigenvectors[:,1])
         dX1_unconstrained.append(random_unconstrained[i] * np.sqrt(eigenvalues[1]) * eigenvectors[:,1])
 
+    dX_constrained = np.zeros(shape=(2*n,nparameters))
+    dX_unconstrained = np.zeros(shape=(2*n,nparameters))
+#    for k in range(nPC):
+    for k in range(nparameters):
+        dX_c = np.zeros(shape=(2*n,nparameters))
+        dX_u = np.zeros(shape=(2*n,nparameters))
+        for i in range((2*n)):        
+            dX_c[i,:] = random_constrained[i] * np.sqrt(eigenvalues[k]) * eigenvectors[:,k]
+            dX_u[i,:] = random_unconstrained[i] * np.sqrt(eigenvalues[k]) * eigenvectors[:,k]
+        dX_constrained = dX_constrained + dX_c
+        dX_unconstrained = dX_unconstrained + dX_u
+
     dX = {}
     dX['dX0_constrained'] = np.array(dX0_constrained)
     dX['dX0_unconstrained'] = np.array(dX0_unconstrained)
     dX['dX1_constrained'] = np.array(dX1_constrained)
     dX['dX1_unconstrained'] = np.array(dX1_unconstrained)
+    dX['dX_constrained'] = np.array(dX_constrained)
+    dX['dX_unconstrained'] = np.array(dX_unconstrained)
 
     return dX
+
+def calc_dBT(dA, har, mmd, channel, idx_):
+
+    dBT = np.empty(shape=(len(mmd['avhrr-ma_x']),dA.shape[0]))
+    for i in range(dA.shape[0]):
+        parameters = dA[i,:]    
+        if channel == 3:
+            npar = 3
+            a0 = parameters[(idx_ *npar)]
+            a1 = parameters[(idx_ *npar)+1]
+            a2 = parameters[(idx_ *npar)+2]
+            a3 = 0.0
+            a4 = 0.0
+            if noT:
+                a2 = 0.0
+            Ce = mmd['avhrr-ma_ch3b_earth_counts']
+            Cs = mmd['avhrr-ma_ch3b_space_counts']
+            Cict = mmd['avhrr-ma_ch3b_bbody_counts']
+        elif channel == 4:
+            npar = 4
+            a0 = parameters[(idx_ *npar)]
+            a1 = parameters[(idx_ *npar)+1]
+            a2 = parameters[(idx_ *npar)+2]
+            a3 = parameters[(idx_ *npar)+3]
+            a4 = 0.0
+            if noT:
+                a3 = 0.0
+            Ce = mmd['avhrr-ma_ch4_earth_counts']
+            Cs = mmd['avhrr-ma_ch4_space_counts']
+            Cict = mmd['avhrr-ma_ch4_bbody_counts']
+        else:
+            npar = 4
+            a0 = parameters[(idx_ *npar)]
+            a1 = parameters[(idx_ *npar)+1]
+            a2 = parameters[(idx_ *npar)+2]
+            a3 = parameters[(idx_ *npar)+3]
+            a4 = 0.0
+            if noT:
+                a3 = 0.0
+            Ce = mmd['avhrr-ma_ch5_earth_counts']
+            Cs = mmd['avhrr-ma_ch5_space_counts']
+            Cict = mmd['avhrr-ma_ch5_bbody_counts']    
+        Tict = mmd['avhrr-ma_ict_temp'] # equivalent to mmd['avhrr-ma_orbital_temp']
+        T_mean = np.mean(Tict[:,3,3])
+        T_sdev = np.std(Tict[:,3,3])
+        Tinst = (mmd['avhrr-ma_orbital_temperature'][:,3,3] - T_mean) / T_sdev
+        Lict = con.bt2rad(Tict,channel,lut)
+        WV = 0.0 * Tinst
+        L = con.count2rad(Ce,Cs,Cict,Lict,Tinst,WV,channel,a0,a1,a2,a3,a4,noT)
+        BT = con.rad2bt(L,channel,lut)[:,3,3]
+
+        dBT[:,i] = BT
+
+    return dBT
 
 ###################################################
 # MAIN
@@ -119,30 +190,82 @@ if __name__ == "__main__":
     n = 5 # --> (2*n) = 10 = number of ensemble members
     c = 0.99 # variance_threshold
     N = 10000 # for draw matrix from Xcov
+
     FLAG_crs_test = False
-    #------------------------------------------------
+    FLAG_new = True # NEW harmonisation structure (run >= '3.0-4d111a1')
 
 #    software_tag = '3e8c463' # job dir=job_avhxx_v6_EIV_10x_11 (old runs)
 #    software_tag = '4d111a1' # job_dir=job_avhxx_v6_EIV_10x_11 (new runs)
     software_tag = 'v0.3Bet' # job_dir=job_avhxx_v6_EIV_10x_11 (new runs)
-    plotstem = '_'+str(ch)+'_'+software_tag+'.png'
 
-    harm_file = 'FIDUCEO_Harmonisation_Data_' + str(ch) + '.nc'    
-    ds = xarray.open_dataset(harm_file)
-    Xave = np.array(ds.parameter)
-    Xcov = np.array(ds.parameter_covariance_matrix)
-    Xcor = np.array(ds.parameter_correlation_matrix)
-    Xu = np.array(ds.parameter_uncertainty)
+    plotstem = '_'+str(ch)+'_'+software_tag+'.png'
+    har_file = 'FIDUCEO_Harmonisation_Data_' + str(ch) + '.nc'    
+    mmd_file = 'mta_mmd.nc'
+
+    idx = 7 # MTA (see avhrr_sat)
+    noT = False
+    if ch == 37:
+        channel = 3
+    elif ch == 11:
+        channel = 4
+    else:
+        channel = 5
+
+    avhrr_sat = [b'N12',b'N14',b'N15',b'N16',b'N17',b'N18',b'N19',b'MTA',b'MTB'] # LUT ordering
+    if FLAG_new:
+        # RQ: NEW2  AATSR, ATSR2,   MTA,   N19,   N18,   N17,   N16,   N15,   N14,   N12,   N11
+        # index         0      1      2      3      4      5      6      7      8      9     10
+        # --> new index map for LUT (N12 --> MTA)
+        idx_ = 7 - idx + 2
+        # RQ: NEW1  AATSR,   MTA,   N19,   N18,   N17,   N16,   N15,   N14,   N12,   N11
+        # index         0      1      2      3      4      5      6      7      8      9
+        # --> new index map for LUT (N12 --> MTA)
+        # idx_ = 7 - idx + 1
+    else:
+        # RQ: OLD     MTA,   N19,   N18,   N17,   N16,   N15,   N14,   N12,   N11
+        # index         0      1      2      3      4      5      6      7      8
+        # --> new index map for LUT (N12 --> MTA)
+        idx_ = 7 - idx
+
+    lut = con.read_in_LUT(avhrr_sat[idx])
+
+    mmd = xarray.open_dataset(mmd_file, decode_times=False)    
+    if channel == 3:
+        BT_MMD = mmd['avhrr-ma_ch3b'][:,3,3]    # (55604, 7, 7)
+    elif channel == 4:
+        BT_MMD = mmd['avhrr-ma_ch4'][:,3,3]
+    else:
+        BT_MMD = mmd['avhrr-ma_ch5'][:,3,3]
+
+    #------------------------------------------------
+
+    har = xarray.open_dataset(har_file, decode_cf=True)
+    Xave = np.array(har.parameter)
+    Xcov = np.array(har.parameter_covariance_matrix)
+    Xcor = np.array(har.parameter_correlation_matrix)
+    Xu = np.array(har.parameter_uncertainty) # = np.sqrt(np.diag(Xcov))
 
     ev = cov2ev(Xcov,c)
-    dX = calc_dX(n,ev['eigenvalues'],ev['eigenvectors'])
-    
+    dX = calc_dX(n,ev)
+    dA = dX['dX_constrained']
+#    dA = dX['dX0_constrained'] + dX['dX1_constrained'] # sum of first 2 PCs
+    dA_cov = np.cov(dA.T) # should be close to Xcov if working
+    dA_u = dA/Xave        # should be close to Xu if working
+    dBT = calc_dBT(dA, har, mmd, channel, idx_)
+
+    print('dA_cov=',dA_cov)
+    print('Xcov=',Xcov)
+    print('dA_u=',dA_u)
+    print('Xu=',Xu)
+
+
     # =======================================
     # INCLUDE PLOT CODE:
     exec(open('plot_cov2ensemble.py').read())
     # =======================================
 
     plot_eigenspectrum(ev)
+    plot_ensemble_an(dA,Xu)
     plot_pc_deltas(dX,Xu)
     plot_crs()
 
