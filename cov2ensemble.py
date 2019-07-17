@@ -95,9 +95,9 @@ def calc_dX(n,ev):
     eigenvectors = ev['eigenvectors']
     nparameters = eigenvectors.shape[1]
     dX_constrained = np.zeros(shape=(2*n,nparameters))
-    random_constrained = np.sort(np.array(crs.generate_10(n)))
+#    random_constrained = np.sort(np.array(crs.generate_10(n)))
     for k in range(nPC):
-#        random_constrained = np.sort(np.array(crs.generate_10(n)))
+        random_constrained = np.sort(np.array(crs.generate_10(n)))
         dX_c = np.zeros(shape=(2*n,nparameters))
         for i in range((2*n)):        
             dX_c[i,:] = random_constrained[i] * np.sqrt(eigenvalues[k]) * eigenvectors[:,k]
@@ -203,13 +203,17 @@ if __name__ == "__main__":
     c = 0.99 # variance_threshold
 #    N = 10000 # for draw matrix from Xcov
     FLAG_new = True # NEW harmonisation structure (run >= '3.0-4d111a1')
-    FLAG_plot = False
+    FLAG_plot = True
+    FLAG_dX2 = False
 #    software_tag = '3e8c463' # job dir=job_avhxx_v6_EIV_10x_11 (old runs)
 #    software_tag = '4d111a1' # job_dir=job_avhxx_v6_EIV_10x_11 (new runs)
     software_tag = 'v0.3Bet' # job_dir=job_avhxx_v6_EIV_10x_11 (new runs)
     plotstem = '_'+str(ch)+'_'+software_tag+'.png'
+
+    # /gws/nopw/j04/fiduceo/Users/jmittaz/FCDR/Mike/FCDR_AVHRR/GBCS/dat_cci/
     har_file = 'FIDUCEO_Harmonisation_Data_' + str(ch) + '.nc'    
     mmd_file = 'mta_mmd.nc'
+    ens_file = 'MC_Harmonisation.nc'
     idx = 7 # MTA (see avhrr_sat)
     #-------------------------------------------------------------------
 
@@ -255,16 +259,35 @@ if __name__ == "__main__":
     Xu = np.array(har.parameter_uncertainty) # = np.sqrt(np.diag(Xcov))
 
     ev = cov2ev(Xcov,c)
-    dX = calc_dX(n,ev)
-    dA = dX # sum of nPC (99% variance)
-    dX2 = calc_dX2(n,ev)
-    dA2 = dX2['dX0_constrained'] + dX2['dX1_constrained'] # sum of first 2 PCs
-    dBT = calc_dBT(dA, har, mmd, channel, idx_)
-    dA_cov = np.cov(dA.T) # should be close to Xcov if working
-    dA_u = dA             # should be close to Xu if working
+    dX = calc_dX(n,ev) # sum of nPC (99% variance)
 
-    print('|Xu - dA|=',np.linalg.norm(Xu-dA))
-    print('|Xcov - dA_cov|=',np.linalg.norm(Xcov-dA_cov))
+    dXcov = np.cov(dX.T) # should be close to Xcov if working
+    dXu = dX             # should be close to Xu if working
+    print('|Xu - dX|=',np.linalg.norm(Xu-dX))
+    print('|Xcov - dXcov|=',np.linalg.norm(Xcov-dXcov))
+
+    #
+    # Open ensemble file and overwrite channel deltas and uuid:
+    #
+
+    ncout = Dataset(ens_file,'r+')
+    if ch == 37:
+        ncout.variables['delta_params3'][:] = dX
+        ncout.HARM_UUID3 = har.uuid
+    elif ch == 11:
+        ncout.variables['delta_params4'][:] = dX
+        ncout.HARM_UUID4 = har.uuid
+    else:
+        ncout.variables['delta_params5'][:] = dX
+        ncout.HARM_UUID5 = har.uuid
+    ncout.close()
+
+    if FLAG_dX2:
+        dX2 = calc_dX2(n,ev)
+        dX = dX2['dX0_constrained'] + dX2['dX1_constrained'] # sum of first 2 PCs
+        plot_pc_deltas(dX,Xu)
+
+    dBT = calc_dBT(dX, har, mmd, channel, idx_)
 
     # =======================================
     # INCLUDE PLOT CODE:
@@ -274,11 +297,10 @@ if __name__ == "__main__":
     if FLAG_plot:
 
         plot_eigenspectrum(ev)
-        plot_ensemble_an(dA,Xu)
+        plot_ensemble_an(dX,Xu)
+        plot_ensemble_deltas(dX)
         plot_ensemble_deltas_normalised(dX,Xu)
         plot_BT_deltas(dBT,BT_MMD)
-        plot_ensemble_deltas(dX)
-        plot_pc_deltas(dX2,Xu)
         plot_crs()
 
     #------------------------------------------------        
