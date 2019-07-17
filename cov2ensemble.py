@@ -4,8 +4,8 @@
 # include plot code: plot_cov2ensemble.py
   
 # =======================================
-# Version 0.12
-# 16 July, 2019
+# Version 0.13
+# 17 July, 2019
 # https://patternizer.github.io/
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
@@ -134,7 +134,7 @@ def calc_dX2(n,ev):
 
     return dX2
 
-def calc_dBT(dA, har, mmd, channel, idx_):
+def calc_dBT(dA, har, mmd, channel, idx_, cci):
 
     noT = False
     dBT = np.empty(shape=(len(mmd['avhrr-ma_x']),dA.shape[0]))
@@ -180,10 +180,16 @@ def calc_dBT(dA, har, mmd, channel, idx_):
         T_mean = np.mean(Tict[:,3,3])
         T_sdev = np.std(Tict[:,3,3])
         Tinst = (mmd['avhrr-ma_orbital_temperature'][:,3,3] - T_mean) / T_sdev
-        Lict = con.bt2rad(Tict,channel,lut)
         WV = 0.0 * Tinst
-        L = con.count2rad(Ce,Cs,Cict,Lict,Tinst,WV,channel,a0,a1,a2,a3,a4,noT)
-        BT = con.rad2bt(L,channel,lut)[:,3,3]
+        if cci:            
+            Lict = con.bt2rad_cci(Tict,channel)
+            L = con.counts2rad_cci(channel,Ce,Cs,Cict,Lict)
+            BT = con.rad2bt_cci(L,channel)[:,3,3]
+        else:
+            Lict = con.bt2rad(Tict,channel,lut)
+            L = con.count2rad(Ce,Cs,Cict,Lict,Tinst,WV,channel,a0,a1,a2,a3,a4,noT)
+            BT = con.rad2bt(L,channel,lut)[:,3,3]
+
 
         dBT[:,i] = BT
 
@@ -202,6 +208,7 @@ if __name__ == "__main__":
     n = 5 # --> (2*n) = 10 = number of ensemble members
     c = 0.99 # variance_threshold
 #    N = 10000 # for draw matrix from Xcov
+    cci = True
     FLAG_new = True # NEW harmonisation structure (run >= '3.0-4d111a1')
     FLAG_plot = True
     FLAG_dX2 = False
@@ -287,7 +294,7 @@ if __name__ == "__main__":
         dX = dX2['dX0_constrained'] + dX2['dX1_constrained'] # sum of first 2 PCs
         plot_pc_deltas(dX,Xu)
 
-    dBT = calc_dBT(dX, har, mmd, channel, idx_)
+    dBT = calc_dBT(dX, har, mmd, channel, idx_, cci)
 
     # =======================================
     # INCLUDE PLOT CODE:
