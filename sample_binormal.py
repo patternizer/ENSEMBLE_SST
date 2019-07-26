@@ -5,28 +5,16 @@
 # call as: python sample_binormal.py
 
 # =======================================
-# Version 0.1
-# 1 April, 2019
+# Version 0.2
+# 25 July, 2019
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
 
-import os  
-import os.path  
-import glob  
-import optparse 
-from  optparse import OptionParser  
-import sys   
 import numpy as np
-import numpy.ma as ma  
-import xarray
 import pandas as pd
 from pandas import Series, DataFrame, Panel
 import seaborn as sns; sns.set(style="darkgrid")
 import matplotlib.pyplot as plt; plt.close("all")
-import matplotlib.dates as mdates
-import matplotlib.colors as colors
-import matplotlib.ticker as ticker
-
 
 def plot_sample_binormal():
     '''
@@ -43,21 +31,16 @@ def plot_sample_binormal():
     Xcov = np.eye(2) # [[1,0],[0,1]]
     size = 10000
     data1 = np.random.multivariate_normal(Xmean, Xcov, size)
-
-    #
-    # Make 100 draws 
-    #
-
-#    X1 = np.random.rand(100)
-#    X2 = np.random.rand(100)
     X1 = data1[:,0]
     X2 = data1[:,1]
     Xmean = [X1.mean(), X2.mean()]
     X = np.stack((X1, X2), axis=0)
     Xcov = np.cov(X)
-#    Xcov = [[0.9,0.1],[0.1,0.9]]
-    print(Xmean)
-    print(Xcov)
+
+    #
+    # Make 100 independent draws 
+    #
+
     size = 100
     data2 = np.random.multivariate_normal(Xmean, Xcov, size)        
     df1 = pd.DataFrame(data1, columns=['x1', 'x2'])
@@ -84,16 +67,8 @@ def plot_sample_binormal():
     graph.plot_joint(plt.scatter, marker="x", color="r", s=50)    
     fig.suptitle('2D-sampling from binormal distribution')
     plt.savefig('sampled_binormal.png')    
-
-# =======================================    
-# MAIN BLOCK
-# =======================================    
     
 if __name__ == "__main__":
-
-#    parser = OptionParser("usage: %prog file_in")
-#    (options, args) = parser.parse_args()
-#    file_in = args[0]
 
     plot_sample_binormal()
 
