@@ -25,6 +25,7 @@ import xarray
 # cov2u(Xcov,N): MC-estimate of uncertainty from covariance matrix
 # da2pc12(ev,n): Project deltas onto 2 leading principal components (PC12) 
 # draws2ensemble(draws,nens): [nens] ensemble members using draw-decile norm
+# ensemble2BT(da,har,mmd,lut,channel,idx_,cci): ensemble BT from ensemble deltas 
 # ev2da(ev,n): [2*n] deltas using CRS
 # find_nearest(array,value): Find value and idx closest to target value
 # fmt(x,pos): Expoential notation in colorbar labels
@@ -85,7 +86,8 @@ def cov2svd(X,c):
     '''
     Singular value decomposition of the covariance matrix: use PCA if non-square  --> nPC(c=0.99)
     '''
-    if X.shape[0] ~= X.shape[1]:
+#    if X.shape[0] ~= X.shape[1]:
+    if X.shape[0] != X.shape[1]:
         if X.shape[0] < X.shape[1]:
             X = X.T
         X_mean = np.mean(X, axis=0)
@@ -216,6 +218,68 @@ def draws2ensemble(draws,nens):
     ens['Z'] = Z
     ens['Z_norm'] = Z_norm
     return ens
+
+def ensemble2BT(da, har, mmd, lut, channel, idx_, cci):
+    '''
+    Function to calculate ensemble BT from ensemble deltas, da and counts
+    '''
+    noT = False
+    a_ave = np.array(har.parameter)
+    BT_ens = np.empty(shape=(len(mmd['avhrr-ma_x']),da.shape[0]))
+    for i in range(da.shape[0]):
+        parameters = da[i,:] + a_ave
+        if channel == 3:
+            npar = 3
+            a0 = parameters[(idx_ *npar)]
+            a1 = parameters[(idx_ *npar)+1]
+            a2 = parameters[(idx_ *npar)+2]
+            a3 = 0.0
+            a4 = 0.0
+            if noT:
+                a2 = 0.0
+            Ce = mmd['avhrr-ma_ch3b_earth_counts']
+            Cs = mmd['avhrr-ma_ch3b_space_counts']
+            Cict = mmd['avhrr-ma_ch3b_bbody_counts']
+        elif channel == 4:
+            npar = 4
+            a0 = parameters[(idx_ *npar)]
+            a1 = parameters[(idx_ *npar)+1]
+            a2 = parameters[(idx_ *npar)+2]
+            a3 = parameters[(idx_ *npar)+3]
+            a4 = 0.0
+            if noT:
+                a3 = 0.0
+            Ce = mmd['avhrr-ma_ch4_earth_counts']
+            Cs = mmd['avhrr-ma_ch4_space_counts']
+            Cict = mmd['avhrr-ma_ch4_bbody_counts']
+        else:
+            npar = 4
+            a0 = parameters[(idx_ *npar)]
+            a1 = parameters[(idx_ *npar)+1]
+            a2 = parameters[(idx_ *npar)+2]
+            a3 = parameters[(idx_ *npar)+3]
+            a4 = 0.0
+            if noT:
+                a3 = 0.0
+            Ce = mmd['avhrr-ma_ch5_earth_counts']
+            Cs = mmd['avhrr-ma_ch5_space_counts']
+            Cict = mmd['avhrr-ma_ch5_bbody_counts']
+        Tict = mmd['avhrr-ma_ict_temp'] # equivalent to mmd['avhrr-ma_orbital_temp']
+        T_mean = np.mean(Tict[:,3,3])
+        T_sdev = np.std(Tict[:,3,3])
+        Tinst = (mmd['avhrr-ma_orbital_temperature'][:,3,3] - T_mean) / T_sdev
+        WV = 0.0 * Tinst
+        if cci:
+            Lict = convert.bt2rad_cci(Tict,channel)
+            L = convert.counts2rad_cci(channel,Ce,Cs,Cict,Lict)
+            BT = convert.rad2bt_cci(L,channel)[:,3,3]
+        else:
+            Lict = convert.bt2rad(Tict,channel,lut)
+            L = convert.counts2rad(Ce,Cs,Cict,Lict,Tinst,WV,channel,a0,a1,a2,a3,a4,noT)
+            BT = convert.rad2bt(L,channel,lut)[:,3,3]
+        BT_ens[:,i] = BT
+
+    return BT_ens
 
 def ev2da(ev,n):
     '''
