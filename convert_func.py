@@ -25,7 +25,7 @@ def dbyd(a1,a2,b1,b2):
 #                                                            #
 #  rad2bt()                                                  #
 #  REQUIRES array of radiance, channel (either 3, 4 or 5)    #
-#  and lut output from read_in_LUT (sensor specific)          #
+#  and lut output from read_in_LUT (sensor specific)         #
 #  RETURNS BT in array of same initial shape of L            # 
 #                                                            # 
 #  bt2rad()                                                  #
@@ -136,7 +136,7 @@ def drad_da(Lict,Ce,Cs,Cict,Tict,Tinst,WV,channel,avhrr_sat):
     except:
         print("No FIDUCEO thermal channel selected: channel=", channel, " < 3")
     
-def count2rad(Ce,Cs,Cict,Lict,Tstar,WV,channel,a0,a1,a2,a3,a4,noT):
+def counts2rad(Ce,Cs,Cict,Lict,Tstar,WV,channel,a0,a1,a2,a3,a4,noT):
     '''
     NB: Tstar = (Tinst - T_mean) / T_std
     NB: WV is a dummy term currently unused
