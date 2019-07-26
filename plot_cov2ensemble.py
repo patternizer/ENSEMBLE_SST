@@ -285,4 +285,30 @@ str(i+1)+')')
     plt.savefig(plotstr)
     plt.close('all')
 
+def pc_plot(PC,E,labels=None):
+    '''
+    Project data on first two PCs and draw eigenvectors
+    '''
+
+    xs = PC[:,0]
+    ys = PC[:,1]
+    n = E.shape[0]
+    scalex = 1.0/(xs.max() - xs.min())
+    scaley = 1.0/(ys.max() - ys.min())
+    plt.scatter(xs * scalex,ys * scaley, c = 'b', alpha=0.2)
+    for i in range(n):
+        plt.arrow(0, 0, E[i,0], E[i,1],color = 'r',alpha = 0.5)
+        if labels is None:
+            plt.text(E[i,0]* 1.15, E[i,1] * 1.15, "Var"+str(i+1), color = 'g',\
+ ha = 'center', va = 'center', fontsize=6)
+        else:
+            plt.text(E[i,0]* 1.15, E[i,1] * 1.15, labels[i], color = 'g', ha =\
+ 'center', va = 'center', fontsize=6)
+    plt.xlim(-1,1)
+    plt.ylim(-1,1)
+    plt.xlabel("PC{}".format(1))
+    plt.ylabel("PC{}".format(2))
+    plt.grid()
+
+    return
 
