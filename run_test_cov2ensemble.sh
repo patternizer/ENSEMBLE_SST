@@ -10,10 +10,10 @@
 # The code is distributed under terms and conditions of the MIT license:
 # https://opensource.org/licenses/MIT.
 
-echo '. /gws/nopw/j04/fiduceo/Users/mtaylor/anaconda3/bin/activate mike' > run.cov2ensemble.sh
-echo python cov2ensemble.py >> run.cov2ensemble.sh
+echo '. /gws/nopw/j04/fiduceo/Users/mtaylor/anaconda3/bin/activate mike' > run.test_cov2ensemble.sh
+echo python test_cov2ensemble.py >> run.test_cov2ensemble.sh
 
-bsub -q short-serial -W24:00 -R rusage[mem=60000] -M 60000 -oo run.1.log < run.cov2ensemble.sh
+bsub -q short-serial -W24:00 -R rusage[mem=60000] -M 60000 -oo run.1.log < run.test_cov2ensemble.sh
 
 
 
