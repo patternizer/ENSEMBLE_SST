@@ -63,7 +63,6 @@ def cov2ev(X,c):
     '''
     Eigenvalue decomposition of the covariance matrix --> nPC(c=0.99)
     '''
-    # U,S,V = np.linalg.svd(X, full_matrices=True) 
     eigenvalues,eigenvectors = np.linalg.eig(X)
     eigenvalues_cumsum = (eigenvalues/eigenvalues.sum()).cumsum()
     nPC = np.where(eigenvalues_cumsum > c)[0][0] # NB: python indexing
