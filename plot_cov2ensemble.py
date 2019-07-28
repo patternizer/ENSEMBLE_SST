@@ -221,10 +221,13 @@ def plot_pc_deltas(dX2,Xu):
 
 def plot_crs():
 
+    from ensemble_func import generate_n_single
+    from ensemble_func import generate_n
+
     for n in np.array([10,50,100,500,1000,5000,10000,50000]):
 
-        random_numbers_unconstrained = crs.generate_10_single(n)
-        random_numbers_constrained = crs.generate_10(n)
+        random_numbers_unconstrained = generate_n_single(n)
+        random_numbers_constrained = generate_n(n)
 
         fig,ax = plt.subplots(1,2)
         labelstr_constrained = 'n=' + str(n) + ': constrained'
