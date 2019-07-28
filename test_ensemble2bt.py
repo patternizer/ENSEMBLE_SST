@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
 # call as: python test_ensemble2bt.py 
+# include plot code: plot_cov2ensemble.py
   
 # =======================================
 # Version 0.1
-# 25 July, 2019
+# 24 July, 2019
 # https://patternizer.github.io/
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
@@ -50,10 +51,10 @@ if __name__ == "__main__":
     har_file = 'FIDUCEO_Harmonisation_Data_' + str(ch) + '.nc'    
     mmd_file = 'mta_mmd.nc'
     idx = 7 # MTA (see avhrr_sat)
-    mns = 0
-    cci = 1
-    FLAG_new = 1 # NEW harmonisation structure (run >= '3.0-4d111a1')
-    FLAG_plot = 1
+    mns = False
+    cci = True
+    FLAG_new = True # NEW harmonisation structure (run >= '3.0-4d111a1')
+    FLAG_plot = True
 #    software_tag = '3e8c463' # job dir=job_avhxx_v6_EIV_10x_11 (old runs)
 #    software_tag = '4d111a1' # job_dir=job_avhxx_v6_EIV_10x_11 (new runs)
     software_tag = 'v0.3Bet' # job_dir=job_avhxx_v6_EIV_10x_11 (new runs)
