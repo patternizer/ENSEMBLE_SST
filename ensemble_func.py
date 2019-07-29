@@ -32,6 +32,7 @@ import xarray
 # fpe(X1,X2): Fractional percentage error (FPE) between two arrays
 # generate_n_single(n): [n] positive-normal random sampling using inverse ERF
 # generate_n(n): [n] Constrained random sampling (CRS) with 3 sets of positive-normal trials
+
 #---------------------------------------------------------------------------
 import convert_func as convert # measurement equations & L<-->BT conversion
 #---------------------------------------------------------------------------
@@ -144,13 +145,13 @@ def cov2u(Xcov,N):
 
 def da2pc12(ev,n):
     '''
-    Project deltas onto 2 leading principal components (PCs)
+    Project deltas onto 2 leading principal components (PCs) [nens,npar]
     '''
     nPC = ev['nPC']
     eigenvalues = ev['eigenvalues']
     eigenvectors = ev['eigenvectors']
     nparameters = eigenvectors.shape[1]
-    randomized = np.sort(np.array(crs.generate_10(n))) # constrained
+    randomized = np.sort(np.array(generate_n(n))) # constrained
     da_pc1 = []
     da_pc2 = []
     for i in range((2*n)):        
@@ -290,7 +291,7 @@ def ev2da(ev,n):
     nparameters = eigenvectors.shape[1]
     da = np.zeros(shape=(2*n,nparameters))
     for k in range(nPC):
-        randomized = np.sort(np.array(crs.generate_10(n)))
+        randomized = np.sort(np.array(generate_n(n)))
         da_c = np.zeros(shape=(2*n,nparameters))
         for i in range((2*n)):        
             da_c[i,:] = randomized[i] * np.sqrt(eigenvalues[k]) * eigenvectors[k,:]
