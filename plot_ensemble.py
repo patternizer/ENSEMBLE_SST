@@ -1,11 +1,43 @@
 #!/usr/bin/env python
 
-# Code include segment in: calc_ensemble.py
+# Code include segment
 # =======================================
-# Version 0.17
-# 7 June, 2019
+# Version 0.18
+# 28 July, 2019
+# https://patternizer.github.io/
 # michael.taylor AT reading DOT ac DOT uk
 # =======================================
+
+
+#---------------------------------------------------------------------------
+# PLOT LIST (alphabetical):
+#---------------------------------------------------------------------------
+
+# plot_bestcase_covariance(ds): Harmonisation parameter covariance matrix for best-case as a heatmap
+# plot_bestcase_parameters(ds, sensor): Harmonisation parameters and uncertainties for best-case
+# plot_ensemble_deltas(ds, ensemble, sensor, nens): Ensemble member coefficients normalised to parameter uncertainty - lineplot, boxplot and correlation heatmap
+# plot_population_cdf(ds, draws, sensor, nens, npop): Population CDF and deciles
+# plot_population_coefficients(ds, draws, sensor, npop): Population coefficient z-scores
+# plot_population_histograms(ds, draws, sensor, nens): Histograms of population coefficient z-scores
+
+#---------------------------------------------------------------------------
+
+def plot_bestcase_covariance(ds):
+    '''
+    Plot harmonisation parameter covariance matrix for best-case as a heatmap
+    '''
+
+    parameter_covariance_matrix = ds['parameter_covariance_matrix'] 
+
+    Y = np.array(parameter_covariance_matrix)
+
+    fig = plt.figure()
+#    sns.heatmap(Y, center=0, linewidths=.5, cmap="viridis", cbar=True)
+    sns.heatmap(Y, center=0, linewidths=.5, cmap="viridis", cbar=True, vmin=-1.0e-9, vmax=1.0e-6, cbar_kws={"extend":'both', "format":mticker.FuncFormatter(fmt)})
+    title_str = "Covariance matrix (relative): max=" + "{0:.3e}".format(Y.max())
+    plt.title(title_str)
+    plt.savefig('bestcase_covariance_matrix.png')    
+    plt.close()
 
 def plot_bestcase_parameters(ds, sensor):
     '''
@@ -90,147 +122,6 @@ def plot_bestcase_parameters(ds, sensor):
     file_str = "bestcase_parameters.png"
     plt.savefig(file_str)    
     plt.close()
-
-def plot_bestcase_covariance(ds):
-    '''
-    Plot harmonisation parameter covariance matrix for best-case as a heatmap
-    '''
-
-    parameter_covariance_matrix = ds['parameter_covariance_matrix'] 
-
-    Y = np.array(parameter_covariance_matrix)
-
-    fig = plt.figure()
-    sns.heatmap(Y, center=0, linewidths=.5, cmap="viridis", cbar=True, vmin=-1.0e-9, vmax=1.0e-6, cbar_kws={"extend":'both', "format":mticker.FuncFormatter(fmt)})
-    title_str = "Covariance matrix (relative): max=" + "{0:.3e}".format(Y.max())
-    plt.title(title_str)
-    plt.savefig('bestcase_covariance_matrix.png')    
-    plt.close()
-
-def plot_population_histograms(ds, draws, sensor, nens):
-    '''
-    Plot histograms of population coefficient z-scores
-    '''
-
-    parameter = ds['parameter'] 
-    parameter_covariance_matrix = ds['parameter_covariance_matrix'] 
-    npar = int( len(parameter) / len(sensor) )
-
-    draws_ave = draws.mean(axis=0)
-    draws_std = draws.std(axis=0)
-    Z = (draws - draws_ave) / draws_std
-#    nbins = nens
-    nbins = 100
-
-    #
-    # Histograms of ensemble variability
-    #
-
-    for i in range(0,len(sensor)):
-
-        fig, ax = plt.subplots(npar,1,sharex=True)
-        for j in range(0,npar):
-
-            k = (npar*i)+j
-            hist, bins = np.histogram(Z[:,k], bins=nbins, density=False) 
-            hist = hist/hist.sum()
-            ax[j].fill_between(bins[0:-1], hist, step="post", alpha=0.4)
-            ax[j].plot(bins[0:-1], hist, drawstyle='steps-post')
-            ax[j].plot((0,0), (0,hist.max()), 'r-')   
-            ax[j].tick_params(labelsize=10)
-            ax[j].set_xlim([-6,6])
-            ax[j].set_ylabel('Prob. density', fontsize=10)
-            title_str = sensor[i] + ": a(" + str(j) + ")=" + "{0:.3e}".format(draws_ave[k])
-            ax[j].set_title(title_str, fontsize=10)
-            
-        plt.xlabel(r'z-score', fontsize=10)
-        file_str = "population_histograms_" + sensor[i] + ".png"
-        plt.savefig(file_str)    
-
-    plt.close('all')
-
-def plot_population_coefficients(ds, draws, sensor, npop):
-    '''
-    Plot population coefficient z-scores
-    '''
-
-    parameter = ds['parameter'] 
-    parameter_covariance_matrix = ds['parameter_covariance_matrix'] 
-    npar = int( len(parameter) / len(sensor) )
-
-    draws_ave = draws.mean(axis=0)
-    draws_std = draws.std(axis=0)
-    Z = (draws - draws_ave) / draws_std
-
-    #
-    # Ensemble coefficients plotted as z-scores relative to best value
-    #
-
-    for i in range(0,len(sensor)):
-
-        fig, ax = plt.subplots(npar,1,sharex=True)
-        for j in range(0,npar):
-
-            k = (npar*i)+j
-            ax[j].plot(np.arange(0,npop), Z[:,k])            
-            ax[j].plot((0,npop), (0,0), 'r-')   
-            ax[j].tick_params(labelsize=10)
-            ax[j].set_ylabel(r'z-score', fontsize=10)
-            ax[j].set_ylim([-6,6])
-            title_str = sensor[i] + ": a(" + str(j) + ")=" + "{0:.3e}".format(draws_ave[k])
-            ax[j].set_title(title_str, fontsize=10)
-
-        plt.xlabel('Population member', fontsize=10)
-        file_str = "population_coefficients_" + sensor[i] + ".png"
-        plt.savefig(file_str)    
-
-    plt.close('all')
-
-def plot_population_cdf(ds, draws, sensor, nens, npop):
-    '''
-    Extract decile values of population
-    '''
-
-    parameter = ds['parameter'] 
-    npar = int( len(parameter) / len(sensor) )
-
-    draws_ave = draws.mean(axis=0)
-    draws_std = draws.std(axis=0)
-    Z = (draws - draws_ave) / draws_std
-
-    F = np.array(range(0,npop))/float(npop)    
-    Z_est = np.empty(shape=(nens,len(parameter)))
-
-    for i in range(0,npar):
-
-        fig, ax = plt.subplots()
-        for j in range(0,len(sensor)):
-
-            k = (npar*i)+j
-
-            #
-            # Empirical CDF
-            #
-
-            hist, edges = np.histogram( Z[:,k], bins = nens, density = True )
-            binwidth = edges[1] - edges[0]
-            Z_cdf = np.sort(Z[:,k])
-            Z_est[:,k] = np.cumsum(hist) * binwidth
-            F_est = edges[1:]
-            label_str = sensor[j]
-#            plt.plot(F_est, Z_est[:,k], marker='.', linewidth=0.25, label=label_str)
-            plt.plot(F_est, Z_est[:,k], linewidth=0.25, label=label_str)
-            plt.xlim([-6,6])
-            plt.ylim([0,1])
-            plt.xlabel('z-score')
-            plt.ylabel('Cumulative distribution function (CDF)')
-            title_str = 'Harmonisation coefficient: a(' + str(i) + ')' 
-            plt.title(title_str)
-            plt.legend(fontsize=10, ncol=1)
-            file_str = "population_cdf_coefficient_" + str(i) + ".png"
-            plt.savefig(file_str)    
-
-    plt.close('all')
 
 def plot_ensemble_deltas(ds, ensemble, sensor, nens):
     '''
@@ -437,205 +328,128 @@ def plot_ensemble_deltas(ds, ensemble, sensor, nens):
 
     plt.close('all')
 
-def plot_eigenval(eigenval, title_str, file_str):
+def plot_population_cdf(ds, draws, sensor, nens, npop):
     '''
-    Plot eigenvalues as a scree plot
-    '''
-
-    Y = eigenval / max(eigenval)
-
-    fig = plt.figure()
-    plt.fill_between( np.arange(0,len(Y)), Y, step="post", alpha=0.4)
-    plt.plot( np.arange(0,len(Y)), Y, drawstyle='steps-post')
-    plt.tick_params(labelsize=12)
-    plt.ylabel("Relative value", fontsize=12)
-    plt.title(title_str)
-    plt.savefig(file_str)
-    plt.close()
-
-def plot_eigenvec(eigenvec, title_str, file_str):
-    '''
-    Plot eigenvector matrix as a heatmap
+    Extract decile values of population
     '''
 
-    X = eigenvec
+    parameter = ds['parameter'] 
+    npar = int( len(parameter) / len(sensor) )
 
-    fig = plt.figure()
-    sns.heatmap(X, center=0, linewidths=.5, cmap="viridis", cbar=True)
-    plt.title(title_str)
-    plt.savefig(file_str)
-    plt.close()
+    draws_ave = draws.mean(axis=0)
+    draws_std = draws.std(axis=0)
+    Z = (draws - draws_ave) / draws_std
 
-def plot_ensemble_check(ds, ensemble):
-    '''
-    Calculate correlation matrix of ensemble.
-    Calculate covariance matrix of ensemble.
-    Calculate diff from harmonisation.
-    Eigenvalue scree plot of covariance and correlation matrices.
-    '''
+    F = np.array(range(0,npop))/float(npop)    
+    Z_est = np.empty(shape=(nens,len(parameter)))
 
-    cov_par = ds.parameter_covariance_matrix
-    cov_ensemble = np.cov(ensemble, rowvar=False)
-    cov_diff = cov_par - cov_ensemble
+    for i in range(0,npar):
 
-    corr_par = ds.parameter_correlation_matrix
-    corr_ensemble = np.corrcoef(ensemble, rowvar=False)
-    corr_diff = corr_par - corr_ensemble
+        fig, ax = plt.subplots()
+        for j in range(0,len(sensor)):
 
-    cov_par_eigenval, cov_par_eigenvec = calc_eigen(cov_par)
-    cov_ensemble_eigenval, cov_ensemble_eigenvec = calc_eigen(cov_ensemble)
+            k = (npar*i)+j
 
-    corr_par_eigenval, corr_par_eigenvec = calc_eigen(corr_par)
-    corr_ensemble_eigenval, corr_ensemble_eigenvec = calc_eigen(corr_ensemble)
+            #
+            # Empirical CDF
+            #
 
-    #
-    # Plot Eigenvalues
-    #
+            hist, edges = np.histogram( Z[:,k], bins = nens, density = True )
+            binwidth = edges[1] - edges[0]
+            Z_cdf = np.sort(Z[:,k])
+            Z_est[:,k] = np.cumsum(hist) * binwidth
+            F_est = edges[1:]
+            label_str = sensor[j]
+#            plt.plot(F_est, Z_est[:,k], marker='.', linewidth=0.25, label=label_str)
+            plt.plot(F_est, Z_est[:,k], linewidth=0.25, label=label_str)
+            plt.xlim([-6,6])
+            plt.ylim([0,1])
+            plt.xlabel('z-score')
+            plt.ylabel('Cumulative distribution function (CDF)')
+            title_str = 'Harmonisation coefficient: a(' + str(i) + ')' 
+            plt.title(title_str)
+            plt.legend(fontsize=10, ncol=1)
+            file_str = "population_cdf_coefficient_" + str(i) + ".png"
+            plt.savefig(file_str)    
 
-    title_str = 'Scree plot (correlation matrix: harmonisation): eigenvalue max=' + "{0:.5f}".format(corr_par_eigenval.max())
-    file_str = 'harmonisation_eigenvalues_correlation_matrix.png'
-    plot_eigenval(corr_par_eigenval, title_str, file_str) 
-
-    title_str = 'Scree plot (correlation matrix: ensemble): eigenvalue max=' + "{0:.5f}".format(corr_ensemble_eigenval.max())
-    file_str = 'ensemble_eigenvalues_correlation_matrix.png'
-    plot_eigenval(corr_ensemble_eigenval, title_str, file_str) 
-
-    title_str = 'Scree plot (covariance matrix: harmonisation): eigenvalue max=' + "{0:.5f}".format(cov_par_eigenval.max())
-    file_str = 'harmonisation_eigenvalues_covariance_matrix.png'
-    plot_eigenval(cov_par_eigenval, title_str, file_str) 
-
-    title_str = 'Scree plot (covariance matrix: ensemble): eigenvalue max=' + "{0:.5f}".format(cov_ensemble_eigenval.max())
-    file_str = 'ensemble_eigenvalues_covariance_matrix.png'
-    plot_eigenval(cov_ensemble_eigenval, title_str, file_str) 
-
-    #
-    # Plot Correlation Matrices
-    #
-
-    title_str = 'Correlation matrix (harmonisation)'
-    file_str = 'harmonisation_correlation_matrix.png'
-    plot_eigenvec(corr_par, title_str, file_str) 
-
-    title_str = "Correlation matrix (ensemble)"
-    file_str = 'ensemble_correlation_matrix.png'    
-    plot_eigenvec(corr_ensemble, title_str, file_str) 
-
-    title_str = "Correlation matrix (harmonisation - ensemble)"
-    file_str = 'diff_correlation_matrix.png'
-    plot_eigenvec(corr_diff, title_str, file_str) 
-
-    #
-    # Plot Covariance Matrices
-    #
-
-    title_str = 'Covariance matrix (harmonisation)'
-    file_str = 'harmonisation_covariance_matrix.png'
-    plot_eigenvec(cov_par, title_str, file_str) 
-
-    title_str = "Covariance matrix (ensemble)"
-    file_str = 'ensemble_covariance_matrix.png'    
-    plot_eigenvec(cov_ensemble, title_str, file_str) 
-
-    title_str = "Covariance matrix (harmonisation - ensemble)"
-    file_str = 'diff_covariance_matrix.png'
-    plot_eigenvec(cov_diff, title_str, file_str)     
-
-
-def plot_L_BT(L, BT, channel):
-
-    fig, ax = plt.subplots(2, 1)
-    ax[0].plot(L, 'k')
-    ax[1].plot(BT, 'r')
-    ax[0].set_title('Radiance')
-    ax[1].set_title('Brightness Temperature')
-    fig.tight_layout()
-    file_str = "L_BT_" + str(channel) + ".png"
-    plt.savefig(file_str)
     plt.close('all')
 
-def plot_L_deltas(L, L_delta, nens, channel):
+def plot_population_coefficients(ds, draws, sensor, npop):
+    '''
+    Plot population coefficient z-scores
+    '''
 
-    fig, ax = plt.subplots()
-    for k in range(nens):
+    parameter = ds['parameter'] 
+    parameter_covariance_matrix = ds['parameter_covariance_matrix'] 
+    npar = int( len(parameter) / len(sensor) )
 
-        label_str = 'Ens(' + str(k+1) + ')'
-        plt.plot(L - L_delta[:,k], linewidth=1.0, label=label_str)
+    draws_ave = draws.mean(axis=0)
+    draws_std = draws.std(axis=0)
+    Z = (draws - draws_ave) / draws_std
 
-    plt.legend(fontsize=10, ncol=1)
-    ax.set_ylabel('Radiance difference', fontsize=12)
-    plt.tight_layout()
-    file_str = "L_ensemble_" + str(channel) + ".png"
-    plt.savefig(file_str)
+    #
+    # Ensemble coefficients plotted as z-scores relative to best value
+    #
+
+    for i in range(0,len(sensor)):
+
+        fig, ax = plt.subplots(npar,1,sharex=True)
+        for j in range(0,npar):
+
+            k = (npar*i)+j
+            ax[j].plot(np.arange(0,npop), Z[:,k])            
+            ax[j].plot((0,npop), (0,0), 'r-')   
+            ax[j].tick_params(labelsize=10)
+            ax[j].set_ylabel(r'z-score', fontsize=10)
+            ax[j].set_ylim([-6,6])
+            title_str = sensor[i] + ": a(" + str(j) + ")=" + "{0:.3e}".format(draws_ave[k])
+            ax[j].set_title(title_str, fontsize=10)
+
+        plt.xlabel('Population member', fontsize=10)
+        file_str = "population_coefficients_" + sensor[i] + ".png"
+        plt.savefig(file_str)    
+
     plt.close('all')
 
-def plot_BT_deltas(BT, BT_delta, nens, channel):
+def plot_population_histograms(ds, draws, sensor, nens):
+    '''
+    Plot histograms of population coefficient z-scores
+    '''
 
-    fig, ax = plt.subplots()
-    for k in range(nens):
+    parameter = ds['parameter'] 
+    parameter_covariance_matrix = ds['parameter_covariance_matrix'] 
+    npar = int( len(parameter) / len(sensor) )
 
-        label_str = 'Ens(' + str(k+1) + ')'
-        plt.plot(BT - BT_delta[:,k], linewidth=1.0, label=label_str)
+    draws_ave = draws.mean(axis=0)
+    draws_std = draws.std(axis=0)
+    Z = (draws - draws_ave) / draws_std
+#    nbins = nens
+    nbins = 100
 
-    plt.legend(fontsize=10, ncol=1)
-    ax.set_ylabel('BT difference / K', fontsize=12)
-    plt.tight_layout()
-    file_str = "BT_ensemble_" + str(channel) + ".png"
-    plt.savefig(file_str)
+    #
+    # Histograms of ensemble variability
+    #
+
+    for i in range(0,len(sensor)):
+
+        fig, ax = plt.subplots(npar,1,sharex=True)
+        for j in range(0,npar):
+
+            k = (npar*i)+j
+            hist, bins = np.histogram(Z[:,k], bins=nbins, density=False) 
+            hist = hist/hist.sum()
+            ax[j].fill_between(bins[0:-1], hist, step="post", alpha=0.4)
+            ax[j].plot(bins[0:-1], hist, drawstyle='steps-post')
+            ax[j].plot((0,0), (0,hist.max()), 'r-')   
+            ax[j].tick_params(labelsize=10)
+            ax[j].set_xlim([-6,6])
+            ax[j].set_ylabel('Prob. density', fontsize=10)
+            title_str = sensor[i] + ": a(" + str(j) + ")=" + "{0:.3e}".format(draws_ave[k])
+            ax[j].set_title(title_str, fontsize=10)
+            
+        plt.xlabel(r'z-score', fontsize=10)
+        file_str = "population_histograms_" + sensor[i] + ".png"
+        plt.savefig(file_str)    
+
     plt.close('all')
 
-def plot_orbit_var(lat, lon, var, vmin, vmax, projection, filestr, titlestr, varstr):
-
-    x = lon[::10,::10]
-    y = lat[::10,::10]
-    z = var[::10,::10]
-
-    cmap = 'viridis'
-    fig  = plt.figure()
-    if projection == 'platecarree':
-        p = ccrs.PlateCarree(central_longitude=0)
-        threshold = 0
-    if projection == 'mollweide':
-        p = ccrs.Mollweide(central_longitude=0)
-        threshold = 1e6
-    if projection == 'robinson':
-        p = ccrs.Robinson(central_longitude=0)
-        threshold = 0
-
-    ax = plt.axes(projection=p)
-    ax.coastlines()
-
-    g = ccrs.Geodetic()
-    # trans = ax.projection.transform_points(g, x.values, y.values)
-    trans = ax.projection.transform_points(g, x, y)
-    x0 = trans[:,:,0]
-    x1 = trans[:,:,1]
-
-    if projection == 'platecarree':
-
-        ax.set_extent([-180, 180, -90, 90], crs=p)
-        gl = ax.gridlines(crs=p, draw_labels=True, linewidth=1, color='gray', alpha=0.5, linestyle='-')
-        gl.xlabels_top = False
-        gl.ylabels_right = False
-        gl.xlines = True
-        gl.ylines = True
-        gl.xlocator = mticker.FixedLocator([-180,-120,-60,0,60,120,180])
-        gl.ylocator = mticker.FixedLocator([-90,-60,-30,0,30,60,90])
-        gl.xformatter = LONGITUDE_FORMATTER
-        gl.yformatter = LATITUDE_FORMATTER
-
-#        im = ax.pcolor(x, y, z, transform=ax.projection, cmap=cmap)           
-        for mask in (x0>threshold,x0<=threshold):
-        
-            im = ax.pcolor(ma.masked_where(mask, x), ma.masked_where(mask, y), ma.masked_where(mask, z), vmin=vmin, vmax=vmax, transform=ax.projection, cmap='seismic')
-
-    else:
-
-        for mask in (x0>threshold,x0<=threshold):
-
-            im = ax.pcolor(ma.masked_where(mask, x0), ma.masked_where(mask, x1), ma.masked_where(mask, z), vmin=vmin, vmax=vmax, transform=ax.projection, cmap='seismic')
-
-    cb = plt.colorbar(im, orientation="horizontal", extend='both', label=varstr)
-
-    plt.title(titlestr)
-    plt.savefig(filestr)
-    plt.close('all')
