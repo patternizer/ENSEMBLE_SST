@@ -17,26 +17,38 @@ import sys
 import glob
 import optparse
 from  optparse import OptionParser
+from netCDF4 import Dataset
 import numpy as np
 from numpy import array_equal, savetxt, loadtxt, frombuffer, save as np_save, load as np_load, savez_compressed, array
+from pandas import Series, DataFrame, Panel
+import xarray
 import scipy.linalg as la
 from scipy.special import erfinv
 import sklearn
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from sklearn import datasets
 from sklearn.datasets import make_classification
-from netCDF4 import Dataset
-import xarray
 import seaborn as sns; sns.set(style='darkgrid')
 import matplotlib.pyplot as plt; plt.close('all')
+import matplotlib.dates as mdates
+import matplotlib.colors as mcolors
+import matplotlib.ticker as mticker
+from matplotlib.collections import PolyCollection
 from mpl_toolkits import mplot3d
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d import proj3d
 
 #----------------------------------------------------------------------------------
-import ensemble_func # functions for ensemble generation
+import ensemble_func as ensemble_func # functions for ensemble generation
 import convert_func as convert_func # functions for L<-->BT conversion & HAR + CCI Meas Eqn
 #----------------------------------------------------------------------------------
+
+# =======================================
+# INCLUDE PLOT CODE:
+exec(open('plot_ensemble.py').read())
+exec(open('plot_cov2ensemble.py').read())
+# =======================================
 
 if __name__ == "__main__":
 
@@ -74,6 +86,8 @@ if __name__ == "__main__":
     # software_tag = '4d111a1' # job_dir=job_avhxx_v6_EIV_10x_11 (new runs)
     software_tag = 'v0.3Bet' # job_dir=job_avhxx_v6_EIV_10x_11 (new runs)
     #--------------------------------------------------------------------------
+    
+    senspr = [b'N12',b'N14',b'N15',b'N16',b'N17',b'N18',b'N19',b'MTA',b'MTB']
 
     if FLAG_mns:
         plotstem = '_'+str(ch)+'_'+'MNS'+'_'+software_tag+'.png'
@@ -114,7 +128,7 @@ if __name__ == "__main__":
         if FLAG_load_draws:
             draws = np_load(filestr_draws)
         else:
-            draws = cov2draws(har,npop)
+            draws = ensemble_func.cov2draws(har,npop)
             np_save(filestr_draws, draws, allow_pickle=False)
 
         # Load / Generate ensemble
@@ -122,7 +136,7 @@ if __name__ == "__main__":
         if FLAG_load_ensemble:
             ens = np_load(filestr_ensemble, allow_pickle=True).item()
         else:
-            ens = draws2ensemble(draws,nens)
+            ens = ensemble_func.draws2ensemble(draws,nens)
             np_save(filestr_ensemble, ens, allow_pickle=True)
 
         ensemble = ens['ensemble']
@@ -134,12 +148,13 @@ if __name__ == "__main__":
 
     else:
 
-        ev = cov2ev(a_cov,c)
-        da = ev2da(n,ev) # sum of nPC (99% variance) 
+        ev = ensemble_func.cov2ev(a_cov,c)
+        da = ensemble_func.ev2da(ev,n) # sum of nPC (99% variance) 
+        
+        # Projection onto first 2 PCs:
 
-        # da_pc12 = da2pc12(n,ev)
-        # da_12 = da_pc12['da_pc1'] + da_pc12['da_pc2'] # sum of first 2 PCs
-        # plot_pc_deltas(da_12,a_u)
+        da_pc12 = ensemble_func.da2pc12(ev,n)
+        plot_ensemble_deltas_pc12(da_pc12,a_u)
 
     # Ensemble closure
 
@@ -166,11 +181,6 @@ if __name__ == "__main__":
             ncout.HARM_UUID5 = har.uuid
         ncout.close()
 
-    # =======================================
-    # INCLUDE PLOT CODE:
-    exec(open('plot_cov2ensemble.py').read())
-    # =======================================
-
     if FLAG_plot:
 
         if FLAG_mns:
@@ -184,9 +194,15 @@ if __name__ == "__main__":
         plot_ensemble_deltas_normalised(da,a_u)
         plot_crs()
 
+        plot_bestcase_covariance(har)
+        plot_bestcase_parameters(har, sensor)
+        plot_ensemble_deltas(har, ensemble, sensor, nens)
+        plot_population_cdf(har, draws, sensor, nens, npop)
+        plot_population_coefficients(har, draws, sensor, npop)
+        plot_population_histograms(har, draws, sensor, nens)
+
     #------------------------------------------------        
     print('** end')
-
 
 
 
