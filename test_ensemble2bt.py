@@ -27,7 +27,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d import proj3d
 
 #------------------------------------------------------------------------------
-import ensemble_func # functions for ensemble generation
+import ensemble_func as ensemble_func # functions for ensemble generation
 import convert_func as convert # functions for L<-->BT conversion & HAR + CCI Meas Eqn
 #------------------------------------------------------------------------------
 
@@ -113,8 +113,8 @@ if __name__ == "__main__":
 
     # Calculate ensemble BT and best-case BT
 
-    BT_ens = ensemble2BT(da, har, mmd, lut, channel, idx_, cci)
-    BT_har = ensemble2BT(da*0., har, mmd, lut, channel, idx_, cci)[:,0]
+    BT_ens = ensemble_func.ensemble2BT(da, har, mmd, lut, channel, idx_, cci)
+    BT_har = ensemble_func.ensemble2BT(da*0., har, mmd, lut, channel, idx_, cci)[:,0]
 
     # =======================================
     # INCLUDE PLOT CODE:
@@ -123,7 +123,9 @@ if __name__ == "__main__":
 
     if FLAG_plot:
 
-        plot_BT_deltas(BT_ens,BT_mmd)
+        plot_ensemble_diff_BT_scatterplot(BT_ens,BT_mmd)
+        plot_ensemble_diff_BT_timeseries(BT_ens,BT_mmd)
+        # plot_ensemble_diff_L_timeseries(L_ens,L)
 
     #------------------------------------------------        
     print('** end')
