@@ -1,4 +1,3 @@
-
 <img alt="FIDUCEO: ENSEMBLE_SST" align="right" src="http://www.fiduceo.eu/sites/default/files/FIDUCEO-logo.png">
 
 [![Build Status](https://travis-ci.org/patternizer/ENSEMBLE_SST.svg?branch=master)](https://travis-ci.org/patternizer/ENSEMBLE_SST)
@@ -13,10 +12,16 @@ Development code for calculation of the SST ensemble from the harmonised AVHRR E
 ## Contents
 
 * `setup.py` - main build script to be run with Python 3.6
-* `calc_ensemble.py` - eigenvalue decomposition script to be run with Python 3.6
-* `ENSEMBLE_SST/` - main package and production code
-* `test/` - test package and test code
-* `doc/` - documentation in Sphinx/RST format
+* `convert_func.py` - functions for radiance <--> brightness temperature conversion functions plus measurement equations
+* `ensemble_func.py` - functions for calculation of the ensemble
+* `inmyvenv.sh` - conda environment activation script
+* `plot_cov2ensemble.py` - plotting routines for cov2ensemble calculations
+* `plot_ensemble.py` - plotting routines for ensemble calculations
+* `run_test_cov2ensemble.sh` - submission script for test_cov2ensemble.py
+* `run_test_ensemble2bt.sh` - submission script for test_ensemble2bt.py
+* `sample_binormal.py` - 2D-normal distribution (joint) Monte Carlo sampling test
+* `test_cov2ensemble.py` - generate ensemble given a covariance matrix and parameter mean values
+* `test_ensemble2bt.py` - generate ensemble brightness temperatures given a radiance ensemble
 
 ## Installation from Sources
 
@@ -36,8 +41,7 @@ The first step is to clone latest ENSEMBLE_SST code and step into the check out 
 [Conda](https://conda.io/docs/intro.html) is the package manager used by the Miniconda or 
 Anaconda Python distributions.
 
-Creating a new Python environment for ENSEMBLE_SST will require around XX GB disk space on Linux/Darwin and and XX 
-GB on Windows. To create a new Conda environment `ENSEMBLE_SST-env` in your Anaconda/Miniconda installation directory, type:
+To create a new Conda environment `ENSEMBLE_SST-env` in your Anaconda/Miniconda installation directory, type:
 
     $ conda env create
 
@@ -67,10 +71,13 @@ requires Python 3.6+.
 ENSEMBLE_SST can be run from sources directly, once the following module requirements are resolved:
 
 * `matplotlib`
-* `netcdf4`
+* `netCDF4`
 * `numba`
 * `numpy`
+* `pandas`
 * `scipy`
+* `seaborn`
+* `sklearn`
 * `xarray`
 
 The most up-to-date list of module requirements is found in the project's `environment.yml` file.
@@ -151,4 +158,5 @@ The code is distributed under terms and conditions of the [MIT license](https://
 
 ## Contact information
 
-* Michael Taylor (michael.taylor@reading.ac.uk)
+* Michael Taylor (michael.taylor@reading.ac.uk): https://patternizer.github.\
+io
