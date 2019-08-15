@@ -158,5 +158,4 @@ The code is distributed under terms and conditions of the [MIT license](https://
 
 ## Contact information
 
-* Michael Taylor (michael.taylor@reading.ac.uk): https://patternizer.github.\
-io
+* Michael Taylor (https://patternizer.github.io)
