@@ -7,7 +7,7 @@
                 
 # ENSEMBLE_SST
 
-Development code for calculation of the SST ensemble from the harmonised AVHRR Easy-FCDR covariance matrix.
+Code for calculation of the FCDR ST ensemble from the AVHRR Easy-FCDR harmonisation parameters and covariance matrix.
 
 ## Contents
 
